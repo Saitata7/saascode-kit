@@ -8,7 +8,15 @@
 #   npx saascode-kit help              # Show help
 # ═══════════════════════════════════════════════════════════
 
-KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# Resolve symlinks (npx creates symlinks in node_modules/.bin/)
+SCRIPT="$0"
+while [ -L "$SCRIPT" ]; do
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT")" && pwd)"
+  SCRIPT="$(readlink "$SCRIPT")"
+  # Handle relative symlink targets
+  [[ "$SCRIPT" != /* ]] && SCRIPT="$SCRIPT_DIR/$SCRIPT"
+done
+KIT_DIR="$(cd "$(dirname "$SCRIPT")/.." && pwd)"
 
 BOLD='\033[1m'
 DIM='\033[2m'
