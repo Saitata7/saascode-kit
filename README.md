@@ -9,6 +9,7 @@
   <a href="https://github.com/Saitata7/saascode-kit/network/members"><img src="https://img.shields.io/github/forks/Saitata7/saascode-kit?style=flat-square" alt="Forks"></a>
   <a href="https://github.com/Saitata7/saascode-kit/issues"><img src="https://img.shields.io/github/issues/Saitata7/saascode-kit?style=flat-square" alt="Issues"></a>
   <a href="https://github.com/Saitata7/saascode-kit/commits/main"><img src="https://img.shields.io/github/last-commit/Saitata7/saascode-kit?style=flat-square" alt="Last Commit"></a>
+  <a href="https://www.npmjs.com/package/saascode-kit"><img src="https://img.shields.io/npm/v/saascode-kit?style=flat-square" alt="npm"></a>
 </p>
 
 <p align="center">
@@ -92,6 +93,16 @@ If your project has specific rules that generic linters can't enforce -- auth gu
 ---
 
 ## Quick Start
+
+### Option 1: npx (Recommended)
+
+```bash
+npx saascode-kit init
+```
+
+This creates `manifest.yaml` from the template. Edit it with your project details, then run `npx saascode-kit init` again to install everything.
+
+### Option 2: Git Submodule
 
 ```bash
 # 1. Add to your project

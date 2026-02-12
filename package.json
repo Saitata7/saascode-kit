@@ -1,0 +1,42 @@
+{
+  "name": "saascode-kit",
+  "version": "0.1.0",
+  "description": "SaaS development toolkit — AI-powered code review, security rules, and IDE config for SaaS projects",
+  "bin": {
+    "saascode-kit": "./bin/cli.sh"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "skills/",
+    "rules/",
+    "cursor-rules/",
+    "templates/",
+    "checklists/",
+    "hooks/",
+    "ci/",
+    "setup.sh",
+    "manifest.example.yaml",
+    "README.md",
+    "SETUP.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "saas",
+    "code-review",
+    "ai-review",
+    "security",
+    "claude",
+    "cursor",
+    "windsurf",
+    "devtools",
+    "multi-tenant"
+  ],
+  "author": "Sai Kumar Tata <https://github.com/Saitata7>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Saitata7/saascode-kit.git"
+  },
+  "homepage": "https://github.com/Saitata7/saascode-kit"
+}
