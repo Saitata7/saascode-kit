@@ -238,7 +238,7 @@ Templates use `{{handlebars}}` syntax, replaced with values from your manifest:
 
 | Placeholder | Example Value |
 |-------------|---------------|
-| `{{project.name}}` | Voycee |
+| `{{project.name}}` | MyApp |
 | `{{project.port}}` | 4000 |
 | `{{stack.frontend.framework}}` | nextjs |
 | `{{stack.backend.framework}}` | nestjs |

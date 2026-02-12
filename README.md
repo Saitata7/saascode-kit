@@ -13,35 +13,83 @@
 
 <p align="center">
   <a href="#what-is-saascode-kit">What Is It</a> &middot;
+  <a href="#key-features">Key Features</a> &middot;
+  <a href="#who-is-this-for">Who Is This For</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
-  <a href="#cli-commands">CLI Commands</a> &middot;
   <a href="GOALS.md">Goals & Vision</a> &middot;
-  <a href="SETUP.md">Full Setup Guide</a> &middot;
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="SETUP.md">Full Setup Guide</a>
 </p>
 
 ---
 
 ## What Is SaasCode Kit?
 
-AI coding tools are powerful but blind -- they don't know your auth pattern, tenant isolation rules, or which endpoints exist. You end up repeating yourself, fixing the same mistakes, and babysitting every prompt.
+AI coding tools are powerful but blind -- they don't know your auth flow, your security patterns, your API conventions, or which endpoints already exist. You end up repeating the same instructions, fixing the same mistakes, and babysitting every prompt.
 
-SaasCode Kit solves this. You fill out one `manifest.yaml` with your project's stack, and the kit generates IDE-specific context files, code review rules, git hooks, and CLI tools -- all tailored to your project.
+SaasCode Kit solves this. You fill out one `manifest.yaml` with your project's stack, and the kit generates IDE-specific context files, code review automation, git hooks, and CLI tools -- all tailored to **your** project.
 
 **One manifest. Every IDE. Every developer. Same rules.**
 
-### What It Generates
+---
 
-| Output | Purpose | Works With |
-|--------|---------|------------|
-| `CLAUDE.md` | AI coding context | Claude Code |
-| `.cursorrules` + `.cursor/rules/` | AI coding context + file-pattern rules | Cursor |
-| `.windsurfrules` | AI coding context | Windsurf |
-| 14 Skills (`/build`, `/review`, `/audit`, etc.) | Mid-conversation commands | Claude Code |
-| 5 Semgrep rule sets | Static analysis in IDE | Any IDE with Semgrep |
-| Git hooks | Pre-commit & pre-push checks | Any git workflow |
-| GitHub Actions | CI pipeline on PRs | GitHub |
-| Shell scripts | On-demand audit, review & deploy checks | Any terminal |
+## Key Features
+
+### Code Review & Analysis
+
+| Feature | What It Does |
+|---------|-------------|
+| **AST-Based Code Review** | Parses your controllers and services with ts-morph. Catches missing auth guards, unscoped queries, empty catch blocks, hardcoded secrets -- with exact line numbers and confidence scores |
+| **AI-Powered Review** | LLM-based semantic code review using free-tier providers (Groq). Catches logical issues that pattern matching can't |
+| **Real-Time File Validation** | Claude Code hooks run after every AI edit (< 1 second). 17 check categories -- the AI self-corrects before you even review |
+| **Endpoint Parity Checker** | Compares frontend API client calls against backend controller routes. Catches 404s before runtime |
+
+### Prevention & Gates
+
+| Feature | What It Does |
+|---------|-------------|
+| **Pre-Commit Hook** | Blocks secrets, .env files, merge conflict markers, debug statements, and oversized files before they enter git |
+| **Pre-Push Hook** | Runs TypeScript check, build verification, and security audit before code reaches the remote |
+| **CI/CD Pipeline** | GitHub Actions workflow: build, test, endpoint parity, and security checks on every PR |
+| **Pre-Deploy Gates** | Full deployment readiness verification -- build, types, tests, parity, security in one command |
+
+### IDE Context & AI Skills
+
+| Feature | What It Does |
+|---------|-------------|
+| **IDE Context Generation** | Generates `CLAUDE.md`, `.cursorrules`, `.windsurfrules` from your manifest -- your project's rules baked into every AI conversation |
+| **14 AI Skills** | Mid-conversation commands for Claude Code: `/build` (full features), `/review` (PR review), `/audit` (security scan), `/debug`, `/test`, `/migrate`, and 8 more |
+| **Tiered Context System** | Message classification (QUICK/MEDIUM/FULL) so a CSS fix costs ~200 tokens instead of 5000+ |
+| **Semgrep Rule Sets** | 5 rule sets for real-time static analysis in any IDE: auth, security, input validation, data scoping, UI consistency |
+
+### Tracking & Intelligence
+
+| Feature | What It Does |
+|---------|-------------|
+| **Intent Tracking** | Logs every AI edit with context -- what was changed, which file, what the check-file validator found. Full audit trail |
+| **Self-Improving Rules** | `/learn` skill captures real bugs found during development and feeds them back into the kit's patterns |
+| **Project Snapshot** | Auto-generates `project-map.md` from your actual codebase -- models, endpoints, pages, components |
+
+---
+
+## Who Is This For?
+
+### SaaS Developers Using AI Coding Tools
+
+If you use Claude Code, Cursor, or Windsurf to build SaaS applications and want the AI to follow your project's patterns instead of guessing.
+
+### Solo Developers Who Need Code Review
+
+If you're a solo developer or small team without dedicated reviewers. The kit gives you automated security and quality checks that would otherwise require expensive per-seat tools.
+
+### Teams Who Want Consistency
+
+If your team has 3+ developers using AI tools and you want everyone's AI to follow the same conventions -- same auth patterns, same API structure, same code style.
+
+### Projects With Custom Patterns
+
+If your project has specific rules that generic linters can't enforce -- auth guard ordering, data scoping conventions, API response formats, or any project-specific patterns that matter.
+
+---
 
 ## Quick Start
 
@@ -62,7 +110,7 @@ saascode windsurf   # Windsurf users
 saascode init
 ```
 
-> See [SETUP.md](SETUP.md) for detailed installation, manifest configuration, and directory structure.
+> See **[SETUP.md](SETUP.md)** for detailed installation, manifest configuration, CLI reference, and directory structure.
 
 ## CLI Commands
 
@@ -72,48 +120,29 @@ saascode claude                    # Install Claude Code config
 saascode cursor                    # Install Cursor config
 saascode windsurf                  # Install Windsurf config
 
-# Setup & Sync
-saascode init                      # Full interactive setup
-saascode update                    # Sync kit source to installed locations
-saascode status                    # Show what's installed
-
 # Code Review
 saascode review                    # AST-based code review
-saascode review --ai               # AI-powered review via Groq
-saascode check-file <path>         # Single-file validator
+saascode review --ai               # AI-powered review (LLM)
+saascode check-file <path>         # Single-file validator (17 checks)
 
-# Analysis
+# Analysis & Deployment
 saascode audit                     # Full security + quality audit
 saascode parity                    # Frontend-backend endpoint comparison
-saascode snapshot                  # Regenerate project-map.md
-
-# Deployment
 saascode predeploy                 # Pre-deployment gates
-saascode checklist [name]          # Show a checklist
+
+# Setup & Sync
+saascode init                      # Full interactive setup
+saascode update                    # Sync kit to installed locations
+saascode status                    # Show what's installed
+saascode help                      # All commands
 ```
-
-## How It Works
-
-7 layers of protection, from writing code to deploying it:
-
-```
-While coding     CLAUDE.md, .cursorrules, .windsurfrules    (AI knows your rules)
-After each edit  Claude Code hooks (check-file.sh)          (validates in < 1 second)
-On demand        saascode review --ai                       (LLM-powered analysis)
-In your IDE      Semgrep rules                              (real-time static analysis)
-At commit        Pre-commit hook                            (blocks secrets, conflicts)
-At review        AST review + endpoint parity               (ts-morph code analysis)
-At PR            GitHub Actions                             (build, test, security)
-```
-
-Each layer catches what the previous one missed.
 
 ## Documentation
 
 | Document | What's In It |
 |----------|-------------|
 | **[GOALS.md](GOALS.md)** | Vision, aims, use cases, pros & cons, how it compares to alternatives |
-| **[SETUP.md](SETUP.md)** | Installation, manifest configuration, CLI setup, directory structure |
+| **[SETUP.md](SETUP.md)** | Installation, manifest config, CLI reference, directory structure, troubleshooting |
 | **[CONTRIBUTING.md](CONTRIBUTING.md)** | How to contribute, code style, testing guidelines |
 | **[LEARNINGS.md](LEARNINGS.md)** | Growth log -- auto-populated by the `/learn` skill |
 
