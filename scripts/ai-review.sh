@@ -1,13 +1,16 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode — AI-Powered Code Review (Groq)
+# SaasCode — AI-Powered Code Review (Multi-Provider)
 #
-# Uses Groq's free tier (llama-3.3-70b) with project-specific
-# review rules loaded from manifest.yaml.
+# Supports 7 providers: Groq, OpenAI, Claude, Gemini,
+# DeepSeek, Kimi K2, Qwen. Drop an API key in .env and
+# it auto-detects — or use --provider to pick one.
 #
 # Usage:
-#   saascode review --ai              # Review staged changes
-#   saascode review --ai --file X.ts  # Review specific file
+#   saascode review --ai                          # Auto-detect provider
+#   saascode review --ai --provider openai         # Use specific provider
+#   saascode review --ai --provider claude --file X.ts
+#   saascode review --ai --model gpt-4o            # Override default model
 #
 # Exit: 0 = pass/warnings, 2 = critical issues
 # ═══════════════════════════════════════════════════════════
@@ -87,16 +90,26 @@ AI_ENABLED=$(read_manifest "ai.enabled" "false")
 # ─── Parse arguments ───
 FILE_PATH=""
 SHOW_HELP=false
+PROVIDER=""
+MODEL_OVERRIDE=""
 
 for arg in "$@"; do
   case "$arg" in
     --ai) ;; # consumed by saascode.sh, skip
-    --file)  NEXT_IS_FILE=true ;;
-    --help|-h) SHOW_HELP=true ;;
+    --file)     NEXT_IS_FILE=true ;;
+    --provider) NEXT_IS_PROVIDER=true ;;
+    --model)    NEXT_IS_MODEL=true ;;
+    --help|-h)  SHOW_HELP=true ;;
     *)
       if [ "$NEXT_IS_FILE" = true ]; then
         FILE_PATH="$arg"
         NEXT_IS_FILE=false
+      elif [ "$NEXT_IS_PROVIDER" = true ]; then
+        PROVIDER="$arg"
+        NEXT_IS_PROVIDER=false
+      elif [ "$NEXT_IS_MODEL" = true ]; then
+        MODEL_OVERRIDE="$arg"
+        NEXT_IS_MODEL=false
       fi
       ;;
   esac
@@ -104,50 +117,123 @@ done
 
 if [ "$SHOW_HELP" = true ]; then
   echo ""
-  echo "${BOLD}SaasCode AI Review${NC}"
+  echo -e "${BOLD}SaasCode AI Review${NC}"
   echo ""
   echo "Usage:"
-  echo "  saascode review --ai              Review staged git changes"
-  echo "  saascode review --ai --file X.ts  Review a specific file"
+  echo "  saascode review --ai                          Review staged git changes"
+  echo "  saascode review --ai --file X.ts              Review a specific file"
+  echo "  saascode review --ai --provider openai        Use a specific provider"
+  echo "  saascode review --ai --model gpt-4o           Override default model"
   echo ""
-  echo "Requires: GROQ_API_KEY in .env or environment"
+  echo "Providers:"
+  echo "  groq       Groq (free tier)     GROQ_API_KEY        llama-3.3-70b-versatile"
+  echo "  openai     OpenAI               OPENAI_API_KEY      gpt-4o-mini"
+  echo "  claude     Anthropic Claude      ANTHROPIC_API_KEY   claude-sonnet-4-20250514"
+  echo "  gemini     Google Gemini         GEMINI_API_KEY      gemini-2.0-flash"
+  echo "  deepseek   DeepSeek             DEEPSEEK_API_KEY    deepseek-chat"
+  echo "  kimi       Kimi K2 (Moonshot)   MOONSHOT_API_KEY    kimi-k2-0711-preview"
+  echo "  qwen       Qwen (Alibaba)       DASHSCOPE_API_KEY   qwen-plus"
+  echo ""
+  echo "Auto-detect: set any API key in .env and it picks the first one found."
   echo ""
   exit 0
 fi
 
-# ─── Load API key ───
-# Priority: environment variable > root .env > common .env locations
-if [ -z "$GROQ_API_KEY" ]; then
-  for ENV_CANDIDATE in "$ROOT/.env" "$ROOT/.env.local"; do
-    if [ -f "$ENV_CANDIDATE" ]; then
-      GROQ_API_KEY=$(grep '^GROQ_API_KEY=' "$ENV_CANDIDATE" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d "'\"" | tr -d '[:space:]')
-      [ -n "$GROQ_API_KEY" ] && break
+# ─── Key resolution ───
+# Checks environment variable first, then .env files
+resolve_key() {
+  local VAR_NAME="$1"
+  local VAL="${!VAR_NAME}"  # indirect reference
+  [ -n "$VAL" ] && echo "$VAL" && return
+
+  # Check .env files
+  for f in "$ROOT/.env" "$ROOT/.env.local"; do
+    [ -f "$f" ] || continue
+    VAL=$(grep "^${VAR_NAME}=" "$f" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d "'\"" | tr -d '[:space:]')
+    [ -n "$VAL" ] && echo "$VAL" && return
+  done
+}
+
+# ─── Provider configuration ───
+configure_provider() {
+  case "$1" in
+    groq)
+      API_URL="https://api.groq.com/openai/v1/chat/completions"
+      KEY_VAR="GROQ_API_KEY"; DEFAULT_MODEL="llama-3.3-70b-versatile"; FORMAT="openai" ;;
+    openai)
+      API_URL="https://api.openai.com/v1/chat/completions"
+      KEY_VAR="OPENAI_API_KEY"; DEFAULT_MODEL="gpt-4o-mini"; FORMAT="openai" ;;
+    claude)
+      API_URL="https://api.anthropic.com/v1/messages"
+      KEY_VAR="ANTHROPIC_API_KEY"; DEFAULT_MODEL="claude-sonnet-4-20250514"; FORMAT="anthropic" ;;
+    gemini)
+      API_URL="https://generativelanguage.googleapis.com/v1beta"
+      KEY_VAR="GEMINI_API_KEY"; DEFAULT_MODEL="gemini-2.0-flash"; FORMAT="gemini" ;;
+    kimi)
+      API_URL="https://api.moonshot.cn/v1/chat/completions"
+      KEY_VAR="MOONSHOT_API_KEY"; DEFAULT_MODEL="kimi-k2-0711-preview"; FORMAT="openai" ;;
+    qwen)
+      API_URL="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+      KEY_VAR="DASHSCOPE_API_KEY"; DEFAULT_MODEL="qwen-plus"; FORMAT="openai" ;;
+    deepseek)
+      API_URL="https://api.deepseek.com/chat/completions"
+      KEY_VAR="DEEPSEEK_API_KEY"; DEFAULT_MODEL="deepseek-chat"; FORMAT="openai" ;;
+    *)
+      echo -e "${RED}Unknown provider: $1${NC}"
+      echo "Available: groq, openai, claude, gemini, deepseek, kimi, qwen"
+      exit 1 ;;
+  esac
+}
+
+# ─── Resolve provider ───
+# CLI flag (--provider) or auto-detect from first API key found
+resolve_provider() {
+  # 1. CLI flag already set
+  if [ -n "$PROVIDER" ]; then
+    configure_provider "$PROVIDER"
+    API_KEY=$(resolve_key "$KEY_VAR")
+    if [ -z "$API_KEY" ]; then
+      echo -e "${RED}Error: $KEY_VAR not found for provider '$PROVIDER'${NC}"
+      echo ""
+      echo "Set it in one of these locations:"
+      echo "  1. Environment: export $KEY_VAR=xxx"
+      echo "  2. File: .env → $KEY_VAR=xxx"
+      exit 1
+    fi
+    return
+  fi
+
+  # 2. Auto-detect: first API key found wins
+  for p in groq openai claude gemini deepseek kimi qwen; do
+    configure_provider "$p"
+    API_KEY=$(resolve_key "$KEY_VAR")
+    if [ -n "$API_KEY" ]; then
+      PROVIDER="$p"
+      return
     fi
   done
-fi
 
-if [ -z "$GROQ_API_KEY" ]; then
-  echo -e "${RED}Error: GROQ_API_KEY not found${NC}"
+  # None found
+  echo -e "${RED}No AI provider configured.${NC}"
   echo ""
-  echo "Set it in one of these locations:"
-  echo "  1. Environment: export GROQ_API_KEY=gsk_xxx"
-  echo "  2. File: .env → GROQ_API_KEY=gsk_xxx"
+  echo "Set an API key in .env (first key found is used):"
   echo ""
-  echo "Get a free key at: https://console.groq.com"
+  echo "  GROQ_API_KEY=gsk_xxx        (free — console.groq.com)"
+  echo "  OPENAI_API_KEY=sk-xxx       (api.openai.com)"
+  echo "  ANTHROPIC_API_KEY=sk-ant-xxx (console.anthropic.com)"
+  echo "  GEMINI_API_KEY=xxx          (aistudio.google.com)"
+  echo "  DEEPSEEK_API_KEY=sk-xxx     (platform.deepseek.com)"
+  echo "  MOONSHOT_API_KEY=xxx        (platform.moonshot.cn)"
+  echo "  DASHSCOPE_API_KEY=xxx       (dashscope.console.aliyun.com)"
+  echo ""
+  echo "Or specify explicitly: saascode review --ai --provider openai"
   exit 1
-fi
+}
 
-# ─── Load model (default: llama-3.3-70b-versatile) ───
-GROQ_MODEL="${GROQ_MODEL:-}"
-if [ -z "$GROQ_MODEL" ]; then
-  for ENV_CANDIDATE in "$ROOT/.env" "$ROOT/.env.local"; do
-    if [ -f "$ENV_CANDIDATE" ]; then
-      GROQ_MODEL=$(grep '^GROQ_MODEL=' "$ENV_CANDIDATE" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d "'\"" | tr -d '[:space:]')
-      [ -n "$GROQ_MODEL" ] && break
-    fi
-  done
-fi
-GROQ_MODEL="${GROQ_MODEL:-llama-3.3-70b-versatile}"
+resolve_provider
+
+# Model: CLI override or provider default
+MODEL="${MODEL_OVERRIDE:-$DEFAULT_MODEL}"
 
 # ─── Collect content to review ───
 CONTENT=""
@@ -191,9 +277,9 @@ else
   SCOPE_DESC="$FILE_COUNT files, ~$LINE_COUNT lines changed ($SCOPE_DESC)"
 fi
 
-# ─── Truncate if too large (Groq free tier limits) ───
+# ─── Truncate if too large ───
 CHAR_COUNT=${#CONTENT}
-MAX_CHARS=60000  # ~15K tokens, well within Groq limits
+MAX_CHARS=60000  # ~15K tokens
 if [ "$CHAR_COUNT" -gt "$MAX_CHARS" ]; then
   CONTENT="${CONTENT:0:$MAX_CHARS}
 
@@ -302,37 +388,89 @@ Summary: 1 critical, 1 warning, 1 info
 If code is clean: PASS: No issues found
 Summary: 0 critical, 0 warnings, 0 info"
 
-# ─── Build JSON payload ───
-# Use jq to safely escape the content into JSON
-PAYLOAD=$(jq -n \
-  --arg model "$GROQ_MODEL" \
-  --arg system "$SYSTEM_PROMPT" \
-  --arg user "Review the following code for the ${PROJECT_NAME} project. Flag any violations of the rules above.
+USER_PROMPT="Review the following code for the ${PROJECT_NAME} project. Flag any violations of the rules above.
 
-$CONTENT" \
-  '{
-    model: $model,
-    messages: [
-      { role: "system", content: $system },
-      { role: "user", content: $user }
-    ],
-    max_tokens: 4096,
-    temperature: 0.2
-  }')
+$CONTENT"
 
-# ─── Call Groq API ───
+# ─── Build JSON payload (per format) ───
+
+build_payload_openai() {
+  jq -n \
+    --arg model "$MODEL" \
+    --arg system "$SYSTEM_PROMPT" \
+    --arg user "$USER_PROMPT" \
+    '{
+      model: $model,
+      messages: [
+        { role: "system", content: $system },
+        { role: "user", content: $user }
+      ],
+      max_tokens: 4096,
+      temperature: 0.2
+    }'
+}
+
+build_payload_anthropic() {
+  jq -n \
+    --arg model "$MODEL" \
+    --arg system "$SYSTEM_PROMPT" \
+    --arg user "$USER_PROMPT" \
+    '{
+      model: $model,
+      max_tokens: 4096,
+      temperature: 0.2,
+      system: $system,
+      messages: [{ role: "user", content: $user }]
+    }'
+}
+
+build_payload_gemini() {
+  jq -n \
+    --arg system "$SYSTEM_PROMPT" \
+    --arg user "$USER_PROMPT" \
+    '{
+      system_instruction: { parts: [{ text: $system }] },
+      contents: [{ role: "user", parts: [{ text: $user }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
+    }'
+}
+
+# ─── Call API ───
 echo ""
 echo -e "${BOLD}═══ SaasCode AI Review ═══${NC}"
-echo -e "${DIM}Provider: Groq ($GROQ_MODEL)${NC}"
+echo -e "${DIM}Provider: ${PROVIDER} ($MODEL)${NC}"
 echo -e "${DIM}Scope: $SCOPE_DESC${NC}"
 echo ""
 
-RESPONSE=$(curl -s -w "\n%{http_code}" \
-  --max-time 60 \
-  -X POST "https://api.groq.com/openai/v1/chat/completions" \
-  -H "Authorization: Bearer $GROQ_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD" 2>/dev/null)
+case "$FORMAT" in
+  openai)
+    PAYLOAD=$(build_payload_openai)
+    RESPONSE=$(curl -s -w "\n%{http_code}" \
+      --max-time 120 \
+      -X POST "$API_URL" \
+      -H "Authorization: Bearer $API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$PAYLOAD" 2>/dev/null)
+    ;;
+  anthropic)
+    PAYLOAD=$(build_payload_anthropic)
+    RESPONSE=$(curl -s -w "\n%{http_code}" \
+      --max-time 120 \
+      -X POST "$API_URL" \
+      -H "x-api-key: $API_KEY" \
+      -H "anthropic-version: 2023-06-01" \
+      -H "content-type: application/json" \
+      -d "$PAYLOAD" 2>/dev/null)
+    ;;
+  gemini)
+    PAYLOAD=$(build_payload_gemini)
+    RESPONSE=$(curl -s -w "\n%{http_code}" \
+      --max-time 120 \
+      -X POST "${API_URL}/models/${MODEL}:generateContent?key=${API_KEY}" \
+      -H "content-type: application/json" \
+      -d "$PAYLOAD" 2>/dev/null)
+    ;;
+esac
 
 # Extract HTTP status (last line) and body (everything else)
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
@@ -340,31 +478,36 @@ BODY=$(echo "$RESPONSE" | sed '$d')
 
 # ─── Handle errors ───
 if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" = "000" ]; then
-  echo -e "${RED}Error: Could not reach Groq API (network timeout)${NC}"
+  echo -e "${RED}Error: Could not reach ${PROVIDER} API (network timeout)${NC}"
   exit 1
 fi
 
 if [ "$HTTP_CODE" != "200" ]; then
   ERROR_MSG=$(echo "$BODY" | jq -r '.error.message // "Unknown error"' 2>/dev/null)
+
   if [ "$HTTP_CODE" = "429" ]; then
-    echo -e "${RED}Error: Groq rate limit exceeded${NC}"
-    echo -e "${DIM}Free tier: 100K tokens/day. Try again later or use a smaller diff.${NC}"
-  elif [ "$HTTP_CODE" = "401" ]; then
-    echo -e "${RED}Error: Invalid GROQ_API_KEY${NC}"
-    echo -e "${DIM}Check your key at: https://console.groq.com${NC}"
+    echo -e "${RED}Error: ${PROVIDER} rate limit exceeded${NC}"
+    echo -e "${DIM}Try again later or use a smaller diff.${NC}"
+  elif [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+    echo -e "${RED}Error: Invalid API key for ${PROVIDER}${NC}"
+    echo -e "${DIM}Check your $KEY_VAR${NC}"
   else
-    echo -e "${RED}Error: Groq API returned HTTP $HTTP_CODE${NC}"
+    echo -e "${RED}Error: ${PROVIDER} API returned HTTP $HTTP_CODE${NC}"
     echo -e "${DIM}$ERROR_MSG${NC}"
   fi
   exit 1
 fi
 
-# ─── Extract review content ───
-REVIEW=$(echo "$BODY" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+# ─── Extract review content (per format) ───
+case "$FORMAT" in
+  openai)    REVIEW=$(echo "$BODY" | jq -r '.choices[0].message.content // empty' 2>/dev/null) ;;
+  anthropic) REVIEW=$(echo "$BODY" | jq -r '.content[0].text // empty' 2>/dev/null) ;;
+  gemini)    REVIEW=$(echo "$BODY" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null) ;;
+esac
 
 if [ -z "$REVIEW" ]; then
-  FINISH_REASON=$(echo "$BODY" | jq -r '.choices[0].finish_reason // "unknown"' 2>/dev/null)
-  echo -e "${RED}Error: Empty response from Groq (finish_reason: $FINISH_REASON)${NC}"
+  echo -e "${RED}Error: Empty response from ${PROVIDER}${NC}"
+  echo -e "${DIM}Response body: $(echo "$BODY" | head -c 500)${NC}"
   exit 1
 fi
 

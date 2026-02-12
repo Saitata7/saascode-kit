@@ -113,7 +113,9 @@ source ~/.zshrc
 | Command | What It Does |
 |---------|-------------|
 | `saascode review` | AST-based code review using ts-morph |
-| `saascode review --ai` | AI-powered review via Groq (free tier) |
+| `saascode review --ai` | AI-powered review (auto-detects provider from API key in .env) |
+| `saascode review --ai --provider X` | Use specific provider: groq, openai, claude, gemini, deepseek, kimi, qwen |
+| `saascode review --ai --model X` | Override default model for any provider |
 | `saascode review --ai --file X.ts` | AI review a specific file |
 | `saascode check-file <path>` | Single-file validator (17 check categories, < 1 second) |
 
@@ -205,7 +207,7 @@ saascode-kit/
 │   ├── lib.sh                     #   Shared library (manifest parsing, templates)
 │   ├── saascode.sh                #   CLI dispatcher
 │   ├── check-file.sh              #   Single-file validator (17 checks)
-│   ├── ai-review.sh               #   AI-powered review via Groq
+│   ├── ai-review.sh               #   AI-powered review (multi-provider)
 │   ├── ast-review.ts              #   AST-based review (ts-morph)
 │   ├── ast-review.sh              #   Shell wrapper for ast-review.ts
 │   ├── endpoint-parity.sh         #   Frontend-backend route comparison
