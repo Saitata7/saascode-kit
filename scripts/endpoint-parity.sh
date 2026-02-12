@@ -33,7 +33,7 @@ read_manifest() {
 
   if [ "$SECTION" = "$FIELD" ]; then
     awk -v key="$SECTION" '
-      /^[a-z]/ && $1 == key":" { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val); print val; exit }
+      /^[a-z]/ && $1 == key":" { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#[[:space:]].*$/, "", val); gsub(/^"|"$/, "", val); print val; exit }
     ' "$MANIFEST"
   else
     awk -v section="$SECTION" -v field="$FIELD" '
@@ -42,7 +42,7 @@ read_manifest() {
       in_section && /^  [a-z]/ {
         line=$0; sub(/^[[:space:]]+/, "", line)
         if (line ~ "^"field":") {
-          val=line; sub(/^[^:]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val); print val; exit
+          val=line; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#[[:space:]].*$/, "", val); gsub(/^"|"$/, "", val); print val; exit
         }
       }
     ' "$MANIFEST"
@@ -73,16 +73,22 @@ echo -e "${CYAN}[1/3] Scanning backend controllers...${NC}"
 
 if [ -d "$CONTROLLERS_DIR" ]; then
   find "$CONTROLLERS_DIR" -name "*.controller.ts" -not -path "*/platform/*" | sort | while read -r file; do
-    # Get controller base path
-    base_path=$(grep -oP "@Controller\(['\"]([^'\"]*)['\"]" "$file" 2>/dev/null | head -1 | sed "s/@Controller(['\"]//;s/['\"]//")
+    # Get controller base path (macOS-compatible: no grep -P)
+    controller_line=$(grep "@Controller(" "$file" 2>/dev/null | head -1)
 
-    # Skip if no controller decorator (might be a webhook or non-standard)
-    [ -z "$base_path" ] && continue
+    # Skip if no controller decorator
+    [ -z "$controller_line" ] && continue
 
-    # Extract each route
+    # Extract path from @Controller('path') — empty if @Controller() has no path arg
+    base_path=""
+    if echo "$controller_line" | grep -qE "@Controller\(['\"]"; then
+      base_path=$(echo "$controller_line" | sed -E "s/.*@Controller\(['\"]([^'\"]*)['\"].*/\1/")
+    fi
+
+    # Extract each route using awk (macOS sed doesn't support \| in BRE)
     grep -nE "@(Get|Post|Put|Patch|Delete)" "$file" 2>/dev/null | while read -r line; do
-      method=$(echo "$line" | grep -oP "@(Get|Post|Put|Patch|Delete)" | head -1 | sed 's/@//' | tr '[:upper:]' '[:lower:]')
-      sub_path=$(echo "$line" | grep -oP "\(['\"]([^'\"]*)['\"]" | head -1 | sed "s/[('\"')]//g")
+      method=$(echo "$line" | sed -E 's/.*@(Get|Post|Put|Patch|Delete).*/\1/' | tr '[:upper:]' '[:lower:]')
+      sub_path=$(echo "$line" | sed -nE "s/.*@[A-Za-z]+\(['\"]([^'\"]*)['\"].*/\1/p")
 
       full_path="/${base_path}"
       [ -n "$sub_path" ] && full_path="${full_path}/${sub_path}"
@@ -103,19 +109,22 @@ echo -e "${CYAN}[2/3] Scanning frontend API clients...${NC}"
 
 if [ -d "$API_CLIENT_DIR" ]; then
   find "$API_CLIENT_DIR" -name "*.ts" | sort | while read -r file; do
-    # Match single-quote and double-quote strings: apiClient.get('/path')
-    grep -oP "apiClient\.(get|post|put|patch|delete)\s*(<[^>]*>)?\s*\(\s*['\"]([^'\"]*)['\"]" "$file" 2>/dev/null | while read -r match; do
-      method=$(echo "$match" | grep -oP "\.(get|post|put|patch|delete)" | sed 's/\.//')
-      path=$(echo "$match" | grep -oP "['\"][^'\"]*['\"]$" | sed "s/['\"]//g")
-      echo "${method}|${path}|${file}" >> "$TEMP_DIR/frontend.txt"
-    done
+    # Extract apiClient.method('/path') calls using sed (macOS-compatible)
+    # Match quoted paths: apiClient.get('/path') or apiClient.get("/path")
+    grep -E "apiClient\.(get|post|put|patch|delete)" "$file" 2>/dev/null | while read -r line; do
+      method=$(echo "$line" | sed -E 's/.*apiClient\.(get|post|put|patch|delete).*/\1/')
 
-    # Match backtick template literals: apiClient.get(`/path/${id}`)
-    grep -oP "apiClient\.(get|post|put|patch|delete)\s*(<[^>]*>)?\s*\(\s*\`([^\`]*)\`" "$file" 2>/dev/null | while read -r match; do
-      method=$(echo "$match" | grep -oP "\.(get|post|put|patch|delete)" | sed 's/\.//')
-      path=$(echo "$match" | grep -oP "\`[^\`]*\`$" | sed 's/`//g')
-      # Replace ${...} with :param
-      path=$(echo "$path" | sed 's/\$\{[^}]*\}/:param/g')
+      # Try quoted path: ('path') or ("path")
+      path=$(echo "$line" | sed -nE "s/.*apiClient\.[a-z]+[^(]*\([[:space:]]*['\"]([^'\"]*)['\"].*/\1/p")
+
+      # Try backtick path: (`/path/${id}`)
+      if [ -z "$path" ]; then
+        path=$(echo "$line" | sed -nE 's/.*apiClient\.[a-z]+[^(]*\([[:space:]]*`([^`]*)`.*/\1/p')
+        # Replace ${...} with :param
+        path=$(echo "$path" | sed -E 's/\$\{[^}]*\}/:param/g')
+      fi
+
+      [ -z "$path" ] && continue
       echo "${method}|${path}|${file}" >> "$TEMP_DIR/frontend.txt"
     done
   done

@@ -100,7 +100,7 @@ load_features() {
         in_s && /^  [a-z]/ {
           line=$0; sub(/^[[:space:]]+/, "", line)
           if (line ~ "^"f":") {
-            val=line; sub(/^[^:]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val)
+            val=line; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#[[:space:]].*$/, "", val); gsub(/^"|"$/, "", val)
             print val; exit
           }
         }

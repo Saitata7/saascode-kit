@@ -41,7 +41,7 @@ read_manifest() {
 
   if [ "$SECTION" = "$FIELD" ]; then
     awk -v key="$SECTION" '
-      /^[a-z]/ && $1 == key":" { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val); print val; exit }
+      /^[a-z]/ && $1 == key":" { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#[[:space:]].*$/, "", val); gsub(/^"|"$/, "", val); print val; exit }
     ' "$MANIFEST"
   else
     awk -v section="$SECTION" -v field="$FIELD" '
@@ -50,7 +50,7 @@ read_manifest() {
       in_section && /^  [a-z]/ {
         line=$0; sub(/^[[:space:]]+/, "", line)
         if (line ~ "^"field":") {
-          val=line; sub(/^[^:]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val); print val; exit
+          val=line; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#[[:space:]].*$/, "", val); gsub(/^"|"$/, "", val); print val; exit
         }
       }
     ' "$MANIFEST"
