@@ -168,18 +168,26 @@ replace_placeholders() {
 }
 
 # ─── Find kit directory ───
-# Checks: $ROOT/saascode-kit/ (submodule), then falls back to script's own dir
+# Checks: $ROOT/saascode-kit/ (submodule/clone), then falls back to script's own dir
 find_kit_dir() {
   local ROOT="${1:-$(find_root)}"
 
-  # Submodule / clone location
-  if [ -d "$ROOT/saascode-kit" ] && [ -f "$ROOT/saascode-kit/manifest.yaml" ]; then
+  # Submodule / clone location (check for setup.sh as kit marker)
+  if [ -d "$ROOT/saascode-kit" ] && [ -f "$ROOT/saascode-kit/setup.sh" ]; then
     echo "$ROOT/saascode-kit"
     return
   fi
 
   # Fall back to script's own directory (one level up from scripts/)
+  # Only if it looks like a kit dir (has setup.sh)
   local SCRIPT_DIR
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  echo "$(cd "$SCRIPT_DIR/.." && pwd)"
+  local KIT_CANDIDATE="$(cd "$SCRIPT_DIR/.." && pwd)"
+  if [ -f "$KIT_CANDIDATE/setup.sh" ]; then
+    echo "$KIT_CANDIDATE"
+    return
+  fi
+
+  # Last resort — check ROOT/saascode-kit without marker
+  echo "$ROOT/saascode-kit"
 }
