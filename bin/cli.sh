@@ -42,20 +42,22 @@ cmd_init() {
     exit 1
   }
 
+  local MANIFEST_IN_PROJECT="$TARGET/saascode-kit.yaml"
+
   echo ""
   echo -e "${BOLD}SaasCode Kit — Init${NC}"
-  echo -e "${DIM}Kit source: $KIT_DIR${NC}"
-  echo -e "${DIM}Target:     $TARGET${NC}"
+  echo -e "${DIM}Target: $TARGET${NC}"
   echo ""
 
-  # Copy manifest if not present
-  if [ ! -f "$KIT_DIR/manifest.yaml" ]; then
+  # Step 1: If no manifest in user's project, create one and stop
+  if [ ! -f "$MANIFEST_IN_PROJECT" ]; then
     if [ -f "$KIT_DIR/manifest.example.yaml" ]; then
-      cp "$KIT_DIR/manifest.example.yaml" "$KIT_DIR/manifest.yaml"
-      echo -e "  ${GREEN}+${NC} Created manifest.yaml from template"
+      cp "$KIT_DIR/manifest.example.yaml" "$MANIFEST_IN_PROJECT"
+      echo -e "  ${GREEN}+${NC} Created saascode-kit.yaml from template"
       echo ""
-      echo -e "  ${CYAN}Edit $KIT_DIR/manifest.yaml with your project details,${NC}"
-      echo -e "  ${CYAN}then run this command again.${NC}"
+      echo -e "  ${CYAN}Next steps:${NC}"
+      echo "  1. Edit saascode-kit.yaml with your project details"
+      echo "  2. Run npx saascode-kit init again"
       echo ""
       exit 0
     else
@@ -63,6 +65,9 @@ cmd_init() {
       exit 1
     fi
   fi
+
+  # Step 2: Manifest exists in project — copy it into kit dir so setup.sh can find it
+  cp "$MANIFEST_IN_PROJECT" "$KIT_DIR/manifest.yaml"
 
   # Run setup
   bash "$KIT_DIR/setup.sh" "$TARGET"
