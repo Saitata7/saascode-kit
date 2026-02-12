@@ -28,7 +28,7 @@ Code review shouldn't require expensive per-seat tools. Security checks (missing
 
 **How:** Two review engines:
 - **AST-based review** -- ts-morph parses every controller and service. Deterministic. Catches structural violations with exact line numbers and confidence scores
-- **AI-powered review** -- LLM-based semantic analysis via free-tier providers (Groq). Catches logical issues that pattern matching can't
+- **AI-powered review** -- LLM-based semantic analysis supporting 7 providers (Groq, OpenAI, Claude, Gemini, DeepSeek, Kimi K2, Qwen). Auto-detects from API keys. Catches logical issues that pattern matching can't
 
 Both are free. No per-seat pricing. No cloud dependency for pattern checks.
 
@@ -144,7 +144,7 @@ Know what the AI changed, when, and why. Essential for teams, compliance, and de
 - **SaaS-oriented** -- Built for SaaS patterns (auth, API endpoints, data scoping). Less useful for other project types
 - **Shell-based CLI** -- Requires bash/zsh. No native Windows support (use WSL)
 - **No dashboard** -- No web UI or team analytics dashboard. CLI and log files only
-- **Manual manifest** -- You fill out `manifest.yaml` once, but it's manual. No auto-detection of your stack
+- **Manual manifest** -- You fill out the manifest once, but it's manual. `npx saascode-kit init` creates a template to get started quickly
 
 ---
 
@@ -178,7 +178,7 @@ AI review tools use LLMs to analyze code semantically. They catch logical issues
 
 You could write custom ESLint rules, Semgrep configs, and shell scripts from scratch. Many teams do.
 
-**SaasCode Kit is that, pre-built.** 5 Semgrep rule sets, 14 skills, git hooks, CI pipeline, and a CLI -- all generated from one manifest. Building this from scratch takes weeks. The kit takes 5 minutes.
+**SaasCode Kit is that, pre-built.** 5 Semgrep rule sets, 14 skills, git hooks, CI pipeline, and a CLI -- all generated from one manifest. Building this from scratch takes weeks. The kit takes one command (`npx saascode-kit init`).
 
 **Trade-off:** Custom rules are exactly tailored. The kit provides 80% coverage out of the box, and you can customize the remaining 20%.
 

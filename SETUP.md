@@ -3,15 +3,32 @@
 ## Prerequisites
 
 - **bash** or **zsh** shell
-- **Git** (for submodule or clone)
-- **Node.js** (for AST-based review)
+- **Node.js** (for npx and AST-based review)
+- **Git** (if using submodule or clone method)
 - A SaaS project to configure
 
 ---
 
 ## Installation
 
-### Option 1: Git Submodule (Recommended)
+### Option 1: npx (Recommended)
+
+Fastest way to get started. No git knowledge needed:
+
+```bash
+npx saascode-kit init
+```
+
+First run creates `saascode-kit.yaml` in your project. Edit it with your project details, then run again:
+
+```bash
+# Edit saascode-kit.yaml with your project details
+npx saascode-kit init
+```
+
+The second run reads your manifest and installs everything (templates, skills, rules, hooks, CI, scripts).
+
+### Option 2: Git Submodule
 
 Stays in sync with kit updates. Run from your project root:
 
@@ -33,7 +50,7 @@ git clone --recurse-submodules <your-repo-url>
 git submodule update --init
 ```
 
-### Option 2: Clone Directly
+### Option 3: Clone Directly
 
 ```bash
 git clone https://github.com/Saitata7/saascode-kit.git saascode-kit
@@ -43,13 +60,17 @@ git clone https://github.com/Saitata7/saascode-kit.git saascode-kit
 
 ## Configuration
 
-### 1. Create Your Manifest
+### For npx users
+
+Edit `saascode-kit.yaml` (created by `npx saascode-kit init`) and run the init command again.
+
+### For submodule/clone users
 
 ```bash
 cp saascode-kit/manifest.example.yaml saascode-kit/manifest.yaml
 ```
 
-### 2. Edit manifest.yaml
+### Manifest Reference
 
 The manifest is the single source of truth. Key sections to fill in:
 
@@ -152,6 +173,9 @@ source ~/.zshrc
 
 ```
 saascode-kit/
+├── package.json                   # npm package config (for npx saascode-kit init)
+├── bin/
+│   └── cli.sh                     # npx CLI entry point
 ├── setup.sh                       # Automated setup -- reads manifest, generates everything
 ├── manifest.example.yaml          # Template -- copy to manifest.yaml and customize
 ├── README.md                      # Project overview
@@ -298,7 +322,8 @@ Report format...
 Add the alias to your shell profile: `alias saascode=".saascode/scripts/saascode.sh"`
 
 **`manifest.yaml not found`**
-Copy the example: `cp saascode-kit/manifest.example.yaml saascode-kit/manifest.yaml`
+If using npx: Run `npx saascode-kit init` to create `saascode-kit.yaml`.
+If using submodule: `cp saascode-kit/manifest.example.yaml saascode-kit/manifest.yaml`
 
 **Placeholders not replaced**
 Make sure `manifest.yaml` exists and has values filled in. Run `saascode claude` (or cursor/windsurf) again after editing the manifest.
