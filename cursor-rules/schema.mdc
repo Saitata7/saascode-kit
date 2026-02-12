@@ -1,0 +1,38 @@
+---
+description: Rules for database schema files
+globs: ["**/prisma/schema.prisma", "**/schema.prisma"]
+---
+
+# Schema Rules
+
+## Tenant-scoped models MUST have tenantId
+```prisma
+model Feature {
+  id        String   @id @default(uuid())
+  tenantId  String                          // REQUIRED
+  // ... fields
+  @@index([tenantId])                       // REQUIRED — for query performance
+}
+```
+
+## Always add indexes on query-heavy columns
+```prisma
+@@index([tenantId])
+@@index([status])
+@@index([createdAt])
+```
+
+## Use UUID for primary keys
+```prisma
+id String @id @default(uuid())
+```
+
+## Define cascade deletes on relations
+```prisma
+tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+```
+
+## Use @@map for table names
+```prisma
+@@map("phone_numbers")
+```

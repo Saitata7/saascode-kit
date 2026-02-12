@@ -1,0 +1,173 @@
+---
+description: AI/LLM security and quality rules — only installed when ai.enabled=true in manifest
+globs: ["**/*.ts", "**/*.tsx"]
+---
+
+# AI/LLM Security & Quality Rules
+
+## Never interpolate user input directly into LLM prompts
+```typescript
+// WRONG:
+const prompt = `Summarize this: ${userInput}`;
+const response = await openai.chat.completions.create({
+  messages: [{ role: 'user', content: prompt }],
+});
+
+// CORRECT:
+const sanitizedInput = sanitizeForPrompt(userInput);
+const response = await openai.chat.completions.create({
+  messages: [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: sanitizedInput },
+  ],
+});
+```
+
+## Never expose system prompts in API responses
+```typescript
+// WRONG:
+return { result: aiResponse, systemPrompt: SYSTEM_PROMPT };
+
+// CORRECT:
+return { result: aiResponse };
+// System prompts stay server-side only
+```
+
+## Never use LLM output in eval() or dangerouslySetInnerHTML
+```typescript
+// WRONG:
+eval(llmResponse.code);
+<div dangerouslySetInnerHTML={{ __html: llmResponse.content }} />
+
+// CORRECT:
+// Validate and sandbox LLM output before execution
+const parsed = JSON.parse(llmResponse.code); // structured output
+<div>{llmResponse.content}</div>
+// Or sanitize: <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(llmResponse.content) }} />
+```
+
+## Always rate-limit AI endpoints
+```typescript
+// WRONG:
+@Post('generate')
+async generate(@Body() dto: GenerateDto) {
+  return this.aiService.generate(dto);
+}
+
+// CORRECT:
+@Throttle({ default: { limit: 10, ttl: 60000 } })
+@Post('generate')
+async generate(@Body() dto: GenerateDto) {
+  return this.aiService.generate(dto);
+}
+```
+
+## Always use config/constants for model names
+```typescript
+// WRONG:
+const response = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages,
+});
+
+// CORRECT:
+import { AI_MODEL } from '@/config/ai';
+const response = await openai.chat.completions.create({
+  model: AI_MODEL, // from env/config
+  messages,
+});
+```
+
+## Always wrap AI API calls in try/catch with timeout
+```typescript
+// WRONG:
+const response = await openai.chat.completions.create({ model, messages });
+
+// CORRECT:
+try {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  const response = await openai.chat.completions.create(
+    { model, messages },
+    { signal: controller.signal },
+  );
+  clearTimeout(timeout);
+  return response;
+} catch (error) {
+  if (error.name === 'AbortError') {
+    throw new RequestTimeoutException('AI request timed out');
+  }
+  this.logger.error('AI API call failed', { error: error.message });
+  throw new InternalServerErrorException('AI service unavailable');
+}
+```
+
+## Always batch embedding calls (never single embed in a loop)
+```typescript
+// WRONG:
+for (const text of texts) {
+  const embedding = await openai.embeddings.create({
+    model: EMBED_MODEL,
+    input: text,
+  });
+  results.push(embedding);
+}
+
+// CORRECT:
+const response = await openai.embeddings.create({
+  model: EMBED_MODEL,
+  input: texts, // batch all at once
+});
+const results = response.data;
+```
+
+## Always validate AI-generated content before DB writes
+```typescript
+// WRONG:
+const aiResult = await this.aiService.generate(prompt);
+await this.prisma.record.create({ data: { content: aiResult } });
+
+// CORRECT:
+const aiResult = await this.aiService.generate(prompt);
+const validated = this.validateAiOutput(aiResult, expectedSchema);
+if (!validated.success) {
+  throw new BadRequestException('AI output failed validation');
+}
+await this.prisma.record.create({ data: { content: validated.data } });
+```
+
+## Never send PII to external AI providers without filtering
+```typescript
+// WRONG:
+const prompt = `Process this user: ${JSON.stringify(user)}`;
+// Sends email, phone, SSN to OpenAI
+
+// CORRECT:
+const safeUser = { id: user.id, role: user.role }; // strip PII
+const prompt = `Process this user: ${JSON.stringify(safeUser)}`;
+```
+
+## Always handle streaming connection drops
+```typescript
+// WRONG:
+const stream = await openai.chat.completions.create({
+  model, messages, stream: true,
+});
+for await (const chunk of stream) {
+  res.write(chunk.choices[0]?.delta?.content || '');
+}
+
+// CORRECT:
+const stream = await openai.chat.completions.create({
+  model, messages, stream: true,
+});
+try {
+  for await (const chunk of stream) {
+    res.write(chunk.choices[0]?.delta?.content || '');
+  }
+} catch (error) {
+  this.logger.error('Stream interrupted', { error: error.message });
+} finally {
+  res.end();
+}
+```

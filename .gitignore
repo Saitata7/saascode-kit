@@ -1,0 +1,9 @@
+# Project-specific (not part of kit)
+manifest.yaml
+node_modules/
+.saascode/logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

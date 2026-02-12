@@ -1,0 +1,40 @@
+---
+description: Rules for backend services — tenant scoping, ownership, queries
+globs: ["**/src/modules/**/*.service.ts"]
+---
+
+# Service Rules
+
+## ALL queries MUST be scoped by tenantId
+```typescript
+// CORRECT:
+findMany({ where: { tenantId } })
+
+// WRONG — returns ALL tenants' data:
+findMany()
+```
+
+## Verify ownership after findUnique
+```typescript
+const record = await this.prisma.model.findUnique({ where: { id } });
+if (!record || record.tenantId !== tenantId) {
+  throw new NotFoundException();
+}
+```
+
+## Use framework exceptions
+```typescript
+throw new NotFoundException('Resource not found');
+throw new ForbiddenException('Access denied');
+throw new BadRequestException('Invalid input');
+// NEVER: throw new Error('...')
+```
+
+## Prisma JSON fields — use double cast
+```typescript
+// CORRECT:
+const config = record.jsonField as unknown as MyType;
+
+// WRONG:
+const config = record.jsonField as MyType;
+```

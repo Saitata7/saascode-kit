@@ -1,0 +1,136 @@
+# SaasCode Kit — Manifest
+# Fill this out once. Everything else is generated from this.
+# Copy to manifest.yaml and customize for your project.
+
+project:
+  name: "MyApp"
+  description: "Brief description of what your SaaS does"
+  type: "multi-tenant-saas"       # single-tenant, multi-tenant-saas, marketplace, platform, api-service
+  domain: "crm"                   # crm, analytics, voice-ai, project-management, ecommerce, etc.
+  port: 4000                      # Backend API port
+
+# Tech Stack
+stack:
+  frontend:
+    framework: "nextjs"           # nextjs, react, vue, svelte, angular
+    version: "14"
+    ui_library: "shadcn"          # shadcn, mui, chakra, ant-design, custom
+    css: "tailwind"               # tailwind, css-modules, styled-components, sass
+    state: "react-query"          # react-query, redux, zustand, jotai, none
+
+  backend:
+    framework: "nestjs"           # nestjs, express, fastify, hono, django, rails, laravel
+    version: "10"
+    orm: "prisma"                 # prisma, typeorm, drizzle, sequelize, mongoose, sqlalchemy
+    database: "postgresql"        # postgresql, mysql, mongodb, sqlite
+    cache: "redis"                # redis, memcached, none
+    queue: "bull"                 # bull, bullmq, rabbitmq, sqs, none
+
+  language: "typescript"          # typescript, javascript, python, ruby, go, java
+
+# Authentication
+auth:
+  provider: "clerk"               # clerk, auth0, supabase, firebase, nextauth, passport, custom
+  multi_tenant: true
+  roles:                          # Your application roles
+    - name: "OWNER"
+      level: "full_access"
+    - name: "ADMIN"
+      level: "manage_resources"
+    - name: "MEMBER"
+      level: "read_only"
+  guard_pattern: "decorator"      # decorator (NestJS), middleware (Express), policy (Laravel)
+  session: "jwt"                  # jwt, session, cookie
+
+# Billing (optional)
+billing:
+  enabled: true
+  provider: "stripe"              # stripe, paddle, lemonsqueezy, chargebee, none
+  model: "subscription"           # subscription, usage-based, one-time, freemium, hybrid
+  webhooks: true
+
+# Multi-Tenancy (if applicable)
+tenancy:
+  enabled: true
+  isolation: "row-level"          # row-level (shared DB), schema-level, database-level
+  identifier: "tenantId"          # The field name used for tenant scoping
+  context_source: "header"        # header, subdomain, path, jwt-claim
+
+# AI Features (optional — enable for AI-powered products)
+ai:
+  enabled: false
+  providers: []                   # openai, anthropic, google, vapi, replicate, groq, together
+  features: []                    # chat, voice, search, generation, analysis, embeddings, agents
+  vector_db: "none"               # pinecone, qdrant, weaviate, pgvector, chromadb, none
+  streaming: false                # true if using SSE/streaming responses
+  structured_output: false        # true if using JSON mode / function calling
+  cost_tracking: false            # true if tracking token usage / AI costs per tenant
+  guardrails: false               # true if using input/output guardrails (content filtering)
+
+# Third-Party Integrations
+integrations:
+  - name: "stripe"
+    type: "billing"
+    has_webhooks: true
+  # - name: "clerk"
+  #   type: "auth"
+  #   has_webhooks: true
+  # - name: "sendgrid"
+  #   type: "email"
+  #   has_webhooks: false
+
+# Infrastructure
+infra:
+  frontend_host: "vercel"         # vercel, netlify, cloudflare, aws-amplify, self-hosted
+  backend_host: "azure"           # azure, aws-ecs, gcp-cloudrun, railway, render, fly, self-hosted
+  ci_provider: "github"           # github, gitlab, bitbucket, circleci
+
+# Security Requirements
+security:
+  owasp_web: true                 # OWASP Top 10 for web apps
+  owasp_llm: false                # OWASP LLM Top 10 (enable if ai.enabled)
+  compliance: []                  # gdpr, soc2, hipaa, pci-dss, iso27001
+  secret_scanning: true
+  dependency_scanning: true
+
+# Code Review Automation
+review:
+  pre_commit: true                # Run checks before git commit
+  pre_push: false                 # Run checks before git push
+  ci_on_pr: true                  # Run checks on pull requests
+  auto_comment_pr: true           # Post review results as PR comment
+
+# Project Structure Paths (adjust to your monorepo/project layout)
+paths:
+  frontend: "apps/portal"         # or "src", "frontend", "client", "web"
+  backend: "apps/api"             # or "src", "backend", "server", "api"
+  shared: "packages/shared"       # or "shared", "common", "libs/shared"
+  schema: "apps/api/prisma/schema.prisma"  # ORM schema file path
+  api_client: "apps/portal/src/lib/api"    # Frontend API client directory
+  components: "apps/portal/src/components" # UI components directory
+
+# Custom Patterns (project-specific things AI should know)
+patterns:
+  # Critical patterns that cause bugs if not followed
+  critical:
+    - id: "guard-chain"
+      description: "All tenant controllers must use 3 guards"
+      correct: "@UseGuards(AuthGuard, TenantGuard, RolesGuard)"
+      wrong: "@UseGuards(AuthGuard, TenantGuard) — roles not enforced"
+
+    - id: "tenant-scoping"
+      description: "All queries must be scoped by tenant identifier"
+      correct: "findMany({ where: { tenantId } })"
+      wrong: "findMany() — returns all tenants' data"
+
+  # Anti-patterns to avoid
+  anti_patterns:
+    - "Never use dangerouslySetInnerHTML with user input"
+    - "Never expose API keys to frontend code"
+    - "Never skip input validation on backend"
+
+  # Color system (if applicable)
+  colors:
+    tenant_ui: "primary-*"
+    admin_ui: "purple-*"
+    forbidden_in_tenant: ["indigo-*", "blue-600"]

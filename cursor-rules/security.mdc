@@ -1,0 +1,43 @@
+---
+description: Security rules — applies to all TypeScript files
+globs: ["**/*.ts", "**/*.tsx"]
+---
+
+# Security Rules
+
+## Never hardcode secrets
+```typescript
+// WRONG:
+const apiKey = "sk_live_abc123";
+
+// CORRECT:
+const apiKey = process.env.API_KEY;
+```
+
+## Never log sensitive data
+```typescript
+// WRONG:
+console.log('Token:', token);
+console.log('Password:', password);
+
+// CORRECT:
+this.logger.log('User authenticated', { userId });
+```
+
+## Never use dangerouslySetInnerHTML with user input
+```tsx
+// WRONG:
+<div dangerouslySetInnerHTML={{ __html: userInput }} />
+
+// CORRECT:
+<div>{userInput}</div>
+```
+
+## Never use raw SQL with interpolation
+```typescript
+// WRONG:
+prisma.$queryRaw`SELECT * FROM users WHERE id = ${userId}`;
+
+// CORRECT:
+prisma.$queryRaw(Prisma.sql`SELECT * FROM users WHERE id = ${userId}`);
+```

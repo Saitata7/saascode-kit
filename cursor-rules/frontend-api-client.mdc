@@ -1,0 +1,29 @@
+---
+description: Rules for API client functions — endpoint parity
+globs: ["**/src/lib/api/**/*.ts"]
+---
+
+# API Client Rules
+
+## Every function MUST have a matching backend endpoint
+```
+apiClient.get('/items')    → @Get() in items.controller.ts
+apiClient.post('/items')   → @Post() in items.controller.ts
+apiClient.patch('/items')  → @Patch() in items.controller.ts
+apiClient.delete('/items') → @Delete() in items.controller.ts
+```
+Frontend call without backend endpoint = 404 at runtime.
+
+## Use typed responses
+```typescript
+export async function getItems(): Promise<Item[]> {
+  const response = await apiClient.get('/items');
+  return response.data;
+}
+```
+
+## Match HTTP methods to operations
+- GET = read (list, get by id)
+- POST = create
+- PATCH = update
+- DELETE = remove

@@ -1,0 +1,59 @@
+---
+description: Rules for frontend pages — states, API calls, role visibility, design quality
+globs: ["**/src/app/**/*.tsx", "**/src/app/**/page.tsx"]
+---
+
+# Page Rules
+
+## Every page needs 3 states
+```tsx
+if (loading) return <LoadingSkeleton />;
+if (error) return <ErrorState onRetry={refetch} />;
+if (!data?.length) return <EmptyState />;
+```
+
+## Use apiClient for API calls
+```typescript
+// CORRECT:
+import { apiClient } from '@/lib/api-client';
+const data = await apiClient.get('/endpoint');
+
+// WRONG — bypasses auth headers:
+const data = await fetch('/api/endpoint');
+```
+
+## Unwrap response correctly
+```typescript
+// Backend returns: { success: true, data: [...] }
+const response = await apiClient.get('/items');
+const items = response.data;  // NOT just 'response'
+```
+
+## Role-based visibility
+```tsx
+{(role === 'OWNER' || role === 'ADMIN') && (
+  <DeleteButton />
+)}
+```
+
+## Toast notifications for actions
+```typescript
+toast.success('Item created');
+toast.error('Failed to create item');
+```
+
+## Design quality — avoid generic AI output
+- Use clear visual hierarchy: one primary action per section, not 5 equal buttons
+- Use consistent spacing: stick to 4/8/12/16/24px scale (Tailwind: space-1/2/3/4/6)
+- Use subtle transitions: `transition-all duration-200` not instant state changes
+- Use color intentionally: primary for actions, red for destructive, gray for secondary
+- Cards and sections need proper padding (p-6) and rounded corners (rounded-lg)
+- Empty states should be helpful: illustration/icon + message + action button
+- Loading skeletons should match the shape of the actual content
+- Forms: labels above inputs, clear validation errors below fields, disabled state while submitting
+
+## Accessibility basics
+- Interactive elements need visible focus styles: `focus:ring-2 focus:ring-primary-500`
+- Images need alt text
+- Buttons with icons only need aria-label
+- Color is never the only way to convey information (add text or icon)

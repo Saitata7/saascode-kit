@@ -1,0 +1,41 @@
+---
+description: Rules for backend controllers — guards, roles, route order
+globs: ["**/src/modules/**/*.controller.ts"]
+---
+
+# Controller Rules
+
+## Guard Chain (CRITICAL)
+Every tenant controller MUST have all 3 guards:
+```typescript
+@UseGuards(AuthGuard, TenantGuard, RolesGuard)
+```
+@Roles() without RolesGuard = roles are SILENTLY IGNORED.
+
+## Every endpoint needs @Roles()
+```typescript
+@Roles(Role.OWNER, Role.ADMIN)
+@Get()
+```
+
+## Static routes BEFORE dynamic routes
+```typescript
+// CORRECT order:
+@Get('config')    // static — first
+@Get(':id')       // dynamic — after
+
+// WRONG — 'config' treated as :id:
+@Get(':id')
+@Get('config')
+```
+
+## Use @CurrentTenant() for tenant context
+```typescript
+@Get()
+findAll(@CurrentTenant() tenant: Tenant) {
+  return this.service.findAll(tenant.id);
+}
+```
+
+## Response format
+Return: `{ success: true, data: result }`

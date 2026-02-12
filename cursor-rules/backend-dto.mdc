@@ -1,0 +1,38 @@
+---
+description: Rules for DTOs — validation decorators required
+globs: ["**/src/modules/**/dto/**/*.ts", "**/*.dto.ts"]
+---
+
+# DTO Rules
+
+## Every field MUST have validation decorators
+```typescript
+@IsString()
+@MaxLength(255)
+name: string;
+
+@IsEmail()
+email: string;
+
+@IsOptional()
+@IsString()
+description?: string;
+```
+
+## Optional fields need @IsOptional()
+```typescript
+// CORRECT:
+@IsOptional()
+@IsString()
+nickname?: string;
+
+// WRONG — validation fails when field is undefined:
+@IsString()
+nickname?: string;
+```
+
+## String fields need @MaxLength()
+Unbounded strings cause storage issues. Always set a limit.
+
+## Do NOT use @nestjs/swagger decorators
+swagger is NOT installed in this project.

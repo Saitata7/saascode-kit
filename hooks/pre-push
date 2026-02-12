@@ -1,0 +1,78 @@
+#!/bin/sh
+# SaasCode Kit — Pre-Push Hook
+# Install: cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# Or use with husky: npx husky add .husky/pre-push "sh saascode-kit/hooks/pre-push"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo "🚀 SaasCode Pre-Push Check"
+echo "================================"
+
+FAILED=0
+
+# ─── 1. TypeScript Compilation ───
+echo "\n${YELLOW}[1/3] TypeScript check...${NC}"
+if npm run typecheck 2>/dev/null; then
+  echo "${GREEN}PASS: TypeScript${NC}"
+else
+  echo "${RED}FAIL: TypeScript errors found${NC}"
+  FAILED=1
+fi
+
+# ─── 2. Backend Build ───
+echo "\n${YELLOW}[2/3] Backend build...${NC}"
+
+# Detect backend path from package.json scripts or common locations
+BACKEND=""
+for DIR in "apps/api" "apps/backend" "backend" "server" "api" "src"; do
+  if [ -f "$DIR/package.json" ] || [ -f "$DIR/tsconfig.json" ]; then
+    BACKEND="$DIR"
+    break
+  fi
+done
+
+if [ -n "$BACKEND" ] && [ -f "$BACKEND/package.json" ]; then
+  if npm --prefix "$BACKEND" run build 2>/dev/null; then
+    echo "${GREEN}PASS: Backend build${NC}"
+  else
+    echo "${RED}FAIL: Backend build failed${NC}"
+    FAILED=1
+  fi
+else
+  echo "${YELLOW}SKIP: No backend detected${NC}"
+fi
+
+# ─── 3. Security Audit ───
+echo "\n${YELLOW}[3/3] Security audit...${NC}"
+AUDIT_OUTPUT=$(npm audit --audit-level=critical 2>&1)
+AUDIT_EXIT=$?
+
+if [ $AUDIT_EXIT -eq 0 ]; then
+  echo "${GREEN}PASS: No critical vulnerabilities${NC}"
+else
+  CRITICAL_COUNT=$(echo "$AUDIT_OUTPUT" | grep -c "critical" 2>/dev/null || true)
+  CRITICAL_COUNT=$(echo "$CRITICAL_COUNT" | tail -1 | tr -d '[:space:]')
+  [ -z "$CRITICAL_COUNT" ] && CRITICAL_COUNT=0
+  if [ "$CRITICAL_COUNT" -gt 0 ]; then
+    echo "${RED}FAIL: Critical vulnerabilities found${NC}"
+    echo "$AUDIT_OUTPUT" | tail -5
+    FAILED=1
+  else
+    echo "${YELLOW}WARNING: Non-critical vulnerabilities found (not blocking)${NC}"
+  fi
+fi
+
+# ─── Result ───
+echo "\n================================"
+if [ $FAILED -ne 0 ]; then
+  echo "${RED}Pre-push check FAILED. Fix issues before pushing.${NC}"
+  echo "To bypass (not recommended): git push --no-verify"
+  exit 1
+else
+  echo "${GREEN}All pre-push checks passed.${NC}"
+  exit 0
+fi
