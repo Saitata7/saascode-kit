@@ -297,6 +297,12 @@ process_conditionals() {
 find_kit_dir() {
   local ROOT="${1:-$(find_root)}"
 
+  # Explicit kit dir from environment (set by bin/cli.sh for npx usage)
+  if [ -n "$SAASCODE_KIT_DIR" ] && [ -f "$SAASCODE_KIT_DIR/setup.sh" ]; then
+    echo "$SAASCODE_KIT_DIR"
+    return
+  fi
+
   # Submodule / clone location (check for setup.sh as kit marker)
   if [ -d "$ROOT/saascode-kit" ] && [ -f "$ROOT/saascode-kit/setup.sh" ]; then
     echo "$ROOT/saascode-kit"
