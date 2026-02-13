@@ -568,6 +568,33 @@ cmd_report() {
   fi
 }
 
+cmd_sweep() {
+  if [ -f "$SCRIPTS_DIR/sweep-cli.sh" ]; then
+    bash "$SCRIPTS_DIR/sweep-cli.sh" "$@"
+  else
+    echo "${RED}Error: sweep-cli.sh not found at $SCRIPTS_DIR${NC}"
+    exit 1
+  fi
+}
+
+cmd_cloak() {
+  if [ -f "$SCRIPTS_DIR/cloak-cli.sh" ]; then
+    bash "$SCRIPTS_DIR/cloak-cli.sh" cloak "$@"
+  else
+    echo "${RED}Error: cloak-cli.sh not found at $SCRIPTS_DIR${NC}"
+    exit 1
+  fi
+}
+
+cmd_uncloak() {
+  if [ -f "$SCRIPTS_DIR/cloak-cli.sh" ]; then
+    bash "$SCRIPTS_DIR/cloak-cli.sh" uncloak "$@"
+  else
+    echo "${RED}Error: cloak-cli.sh not found at $SCRIPTS_DIR${NC}"
+    exit 1
+  fi
+}
+
 cmd_check_file() {
   local FILE="${1}"
   if [ -z "$FILE" ]; then
@@ -826,6 +853,8 @@ cmd_help() {
   printf "  %-28s %s\n" "saascode-kit check-file <path>" "Single-file validator (Claude Code hook)"
   echo ""
   echo "  ${CYAN}Analysis:${NC}"
+  printf "  %-28s %s\n" "saascode-kit sweep" "Run ALL checks (audit + predeploy + review)"
+  printf "  %-28s %s\n" "saascode-kit sweep --ai" "Full sweep with AI review"
   printf "  %-28s %s\n" "saascode-kit audit" "Run full security + quality audit"
   printf "  %-28s %s\n" "saascode-kit parity" "Check frontend-backend endpoint parity"
   printf "  %-28s %s\n" "saascode-kit snapshot" "Generate project-map.md from codebase"
@@ -839,6 +868,11 @@ cmd_help() {
   printf "  %-28s %s\n" "saascode-kit report" "View detected issues"
   printf "  %-28s %s\n" "saascode-kit report --github" "File issues to GitHub"
   printf "  %-28s %s\n" "saascode-kit report --summary" "Issue counts by category"
+  echo ""
+  echo "  ${CYAN}Stealth:${NC}"
+  printf "  %-28s %s\n" "saascode-kit cloak" "Hide all kit + AI tool traces from repo"
+  printf "  %-28s %s\n" "saascode-kit cloak --name .tools" "Use custom directory name"
+  printf "  %-28s %s\n" "saascode-kit uncloak" "Reverse stealth mode, restore all files"
   echo ""
   echo "  ${CYAN}Deployment:${NC}"
   printf "  %-28s %s\n" "saascode-kit predeploy" "Run pre-deployment gates"
@@ -900,6 +934,9 @@ case "$COMMAND" in
   check-file) cmd_check_file "$@" ;;
   intent)     cmd_intent "$@" ;;
   report)     cmd_report "$@" ;;
+  sweep)      cmd_sweep "$@" ;;
+  cloak)      cmd_cloak "$@" ;;
+  uncloak)    cmd_uncloak "$@" ;;
   help|--help|-h)  cmd_help ;;
   *)
     echo "${RED}Unknown command: $COMMAND${NC}"
