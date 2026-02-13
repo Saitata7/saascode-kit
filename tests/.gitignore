@@ -1,0 +1,8 @@
+# Test fixtures (22MB) - too large for git
+projects/
+
+# Temporary test results
+results.txt
+
+# You can download test fixtures from releases if needed
+# Or create your own minimal test projects

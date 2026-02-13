@@ -493,22 +493,30 @@ process_conditionals() {
 
   # --- 1. Process {{#if_eq field "value"}}...{{/if_eq}} ---
   # Extract all if_eq blocks and evaluate them
+  # BSD awk compatible (no 3-arg match)
   awk '
   BEGIN { skip=0; depth=0 }
   /\{\{#if_eq / {
-    match($0, /\{\{#if_eq ([^ ]+) "([^"]*)"/, arr)
-    if (RSTART > 0) {
-      var = arr[1]; val = arr[2]
-      # Read variable from environment via ENVIRON (dots → underscores)
-      gsub(/\./, "_", var)
-      actual = ENVIRON["TMPL_" var]
-      if (actual == val) {
-        # Keep block contents, remove the tag line
-        next
-      } else {
-        skip = 1; depth = 1
-        next
-      }
+    # Extract var and val using sub() for BSD awk compatibility
+    line = $0
+    sub(/.*\{\{#if_eq /, "", line)
+    sub(/ ".*/, "", line)  # var is now in line
+    var = line
+
+    line = $0
+    sub(/.*\{\{#if_eq [^ ]+ "/, "", line)
+    sub(/".*/, "", line)  # val is now in line
+    val = line
+
+    # Read variable from environment via ENVIRON (dots → underscores)
+    gsub(/\./, "_", var)
+    actual = ENVIRON["TMPL_" var]
+    if (actual == val) {
+      # Keep block contents, remove the tag line
+      next
+    } else {
+      skip = 1; depth = 1
+      next
     }
   }
   /\{\{\/if_eq\}\}/ {
@@ -525,21 +533,24 @@ process_conditionals() {
 
   # --- 2. Process {{#if field}}...{{/if}} ---
   # Uses simple awk: check if the variable is non-empty and not "false"/"none"
+  # BSD awk compatible (no 3-arg match)
   awk '
   BEGIN { skip=0; depth=0 }
   /\{\{#if [a-zA-Z]/ {
-    match($0, /\{\{#if ([a-zA-Z_.]+)/, arr)
-    if (RSTART > 0) {
-      var = arr[1]
-      # Dots → underscores for env var lookup
-      gsub(/\./, "_", var)
-      actual = ENVIRON["TMPL_" var]
-      if (actual != "" && actual != "false" && actual != "none" && actual != "False") {
-        next
-      } else {
-        skip = 1; depth = 1
-        next
-      }
+    # Extract var using sub() for BSD awk compatibility
+    line = $0
+    sub(/.*\{\{#if /, "", line)
+    sub(/\}\}.*/, "", line)  # var is now in line
+    var = line
+
+    # Dots → underscores for env var lookup
+    gsub(/\./, "_", var)
+    actual = ENVIRON["TMPL_" var]
+    if (actual != "" && actual != "false" && actual != "none" && actual != "False") {
+      next
+    } else {
+      skip = 1; depth = 1
+      next
     }
   }
   /\{\{\/if\}\}/ {
