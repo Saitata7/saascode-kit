@@ -14,56 +14,208 @@ echo "================================"
 
 FAILED=0
 
-# ─── 1. TypeScript Compilation ───
-echo "\n${YELLOW}[1/3] TypeScript check...${NC}"
-if npm run typecheck 2>/dev/null; then
-  echo "${GREEN}PASS: TypeScript${NC}"
-else
-  echo "${RED}FAIL: TypeScript errors found${NC}"
-  FAILED=1
-fi
+# ─── Inline manifest reader (POSIX-compatible) ───
+_read_manifest() {
+  _KEY="$1"
+  _DEFAULT="$2"
+  _MANIFEST=""
+  _ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  for _C in "$_ROOT/saascode-kit/manifest.yaml" "$_ROOT/.saascode/manifest.yaml" "$_ROOT/manifest.yaml" "$_ROOT/saascode-kit.yaml"; do
+    [ -f "$_C" ] && _MANIFEST="$_C" && break
+  done
+  [ -z "$_MANIFEST" ] && echo "$_DEFAULT" && return
+
+  _SECTION="${_KEY%%.*}"
+  _FIELD="${_KEY#*.}"
+
+  if [ "$_SECTION" = "$_FIELD" ]; then
+    _VAL=$(awk -v key="$_SECTION" '/^[a-z]/ && $1 == key":" { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#.*$/, "", val); gsub(/^"|"$/, "", val); print val; exit }' "$_MANIFEST")
+  else
+    _VAL=$(awk -v s="$_SECTION" -v f="$_FIELD" 'BEGIN{in_s=0} /^[a-z]/{in_s=($1==s":")?1:0;next} in_s&&/^  [a-z]/{line=$0;sub(/^[[:space:]]+/,"",line);if(line~"^"f":"){val=line;sub(/^[^:]+:[[:space:]]*/,"",val);sub(/[[:space:]]+#.*$/,"",val);gsub(/^"|"$/,"",val);print val;exit}}' "$_MANIFEST")
+  fi
+  echo "${_VAL:-$_DEFAULT}"
+}
+
+_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+LANG=$(_read_manifest "stack.language" "typescript")
+BACKEND=$(_read_manifest "paths.backend" "apps/api")
+
+# ─── 1. Type / Static Analysis Check ───
+echo "\n${YELLOW}[1/3] Type / static analysis check...${NC}"
+case "$LANG" in
+  typescript)
+    if npm run typecheck > /dev/null 2>&1; then
+      echo "${GREEN}PASS: TypeScript${NC}"
+    else
+      echo "${RED}FAIL: TypeScript errors found${NC}"
+      FAILED=1
+    fi
+    ;;
+  python)
+    if command -v mypy >/dev/null 2>&1; then
+      if mypy . > /dev/null 2>&1; then
+        echo "${GREEN}PASS: mypy${NC}"
+      else
+        echo "${RED}FAIL: mypy errors found${NC}"
+        FAILED=1
+      fi
+    else
+      echo "${YELLOW}SKIP: mypy not installed${NC}"
+    fi
+    ;;
+  go)
+    if go vet ./... > /dev/null 2>&1; then
+      echo "${GREEN}PASS: go vet${NC}"
+    else
+      echo "${RED}FAIL: go vet errors found${NC}"
+      FAILED=1
+    fi
+    ;;
+  java)
+    echo "${YELLOW}SKIP: Java type checking handled by build${NC}"
+    ;;
+  rust)
+    if cargo check > /dev/null 2>&1; then
+      echo "${GREEN}PASS: cargo check${NC}"
+    else
+      echo "${RED}FAIL: cargo check errors found${NC}"
+      FAILED=1
+    fi
+    ;;
+  *)
+    echo "${YELLOW}SKIP: No type checker for $LANG${NC}"
+    ;;
+esac
 
 # ─── 2. Backend Build ───
 echo "\n${YELLOW}[2/3] Backend build...${NC}"
 
-# Detect backend path from package.json scripts or common locations
-BACKEND=""
-for DIR in "apps/api" "apps/backend" "backend" "server" "api" "src"; do
-  if [ -f "$DIR/package.json" ] || [ -f "$DIR/tsconfig.json" ]; then
-    BACKEND="$DIR"
-    break
-  fi
-done
+# Detect backend path and build command
+_detect_build() {
+  case "$LANG" in
+    typescript|javascript)
+      # Check for package.json in backend path
+      for DIR in "$BACKEND" "apps/api" "apps/backend" "backend" "server" "api" "src"; do
+        if [ -f "$_ROOT/$DIR/package.json" ]; then
+          # Detect package manager
+          if [ -f "$_ROOT/pnpm-lock.yaml" ]; then
+            echo "pnpm --dir $_ROOT/$DIR run build"
+          elif [ -f "$_ROOT/yarn.lock" ]; then
+            echo "yarn --cwd $_ROOT/$DIR build"
+          else
+            echo "npm --prefix $_ROOT/$DIR run build"
+          fi
+          return
+        fi
+      done
+      ;;
+    go)
+      echo "go build ./$BACKEND/..."
+      return
+      ;;
+    java)
+      if [ -f "$_ROOT/$BACKEND/pom.xml" ] || [ -f "$_ROOT/pom.xml" ]; then
+        echo "mvn -f $_ROOT/${BACKEND}/pom.xml package -q -DskipTests"
+      elif [ -f "$_ROOT/$BACKEND/build.gradle" ]; then
+        echo "gradle -p $_ROOT/$BACKEND build -x test"
+      fi
+      return
+      ;;
+    rust)
+      echo "cargo build"
+      return
+      ;;
+    python)
+      # Python typically doesn't have a build step
+      echo ""
+      return
+      ;;
+    ruby)
+      echo ""
+      return
+      ;;
+  esac
+  echo ""
+}
 
-if [ -n "$BACKEND" ] && [ -f "$BACKEND/package.json" ]; then
-  if npm --prefix "$BACKEND" run build 2>/dev/null; then
+BUILD_CMD=$(_detect_build)
+
+if [ -n "$BUILD_CMD" ]; then
+  if eval "$BUILD_CMD" > /dev/null 2>&1; then
     echo "${GREEN}PASS: Backend build${NC}"
   else
     echo "${RED}FAIL: Backend build failed${NC}"
     FAILED=1
   fi
 else
-  echo "${YELLOW}SKIP: No backend detected${NC}"
+  echo "${YELLOW}SKIP: No build step detected${NC}"
 fi
 
 # ─── 3. Security Audit ───
 echo "\n${YELLOW}[3/3] Security audit...${NC}"
-AUDIT_OUTPUT=$(npm audit --audit-level=critical 2>&1)
-AUDIT_EXIT=$?
 
-if [ $AUDIT_EXIT -eq 0 ]; then
-  echo "${GREEN}PASS: No critical vulnerabilities${NC}"
-else
-  CRITICAL_COUNT=$(echo "$AUDIT_OUTPUT" | grep -c "critical" 2>/dev/null || true)
-  CRITICAL_COUNT=$(echo "$CRITICAL_COUNT" | tail -1 | tr -d '[:space:]')
-  [ -z "$CRITICAL_COUNT" ] && CRITICAL_COUNT=0
-  if [ "$CRITICAL_COUNT" -gt 0 ]; then
-    echo "${RED}FAIL: Critical vulnerabilities found${NC}"
-    echo "$AUDIT_OUTPUT" | tail -5
-    FAILED=1
+_detect_audit() {
+  case "$LANG" in
+    typescript|javascript)
+      if [ -f "$_ROOT/pnpm-lock.yaml" ]; then
+        echo "pnpm audit --audit-level critical"
+      elif [ -f "$_ROOT/yarn.lock" ]; then
+        echo "yarn audit --level critical"
+      else
+        echo "npm audit --audit-level=critical"
+      fi
+      ;;
+    python)
+      command -v pip-audit >/dev/null 2>&1 && echo "pip-audit" && return
+      command -v safety >/dev/null 2>&1 && echo "safety check" && return
+      echo ""
+      ;;
+    ruby)
+      command -v bundle-audit >/dev/null 2>&1 && echo "bundle-audit check" && return
+      echo ""
+      ;;
+    go)
+      command -v govulncheck >/dev/null 2>&1 && echo "govulncheck ./..." && return
+      echo ""
+      ;;
+    java)
+      echo ""
+      ;;
+    rust)
+      command -v cargo-audit >/dev/null 2>&1 && echo "cargo audit" && return
+      echo ""
+      ;;
+    php)
+      echo "composer audit"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+AUDIT_CMD=$(_detect_audit)
+
+if [ -n "$AUDIT_CMD" ]; then
+  AUDIT_OUTPUT=$(eval "$AUDIT_CMD" 2>&1)
+  AUDIT_EXIT=$?
+
+  if [ $AUDIT_EXIT -eq 0 ]; then
+    echo "${GREEN}PASS: No critical vulnerabilities${NC}"
   else
-    echo "${YELLOW}WARNING: Non-critical vulnerabilities found (not blocking)${NC}"
+    CRITICAL_COUNT=$(echo "$AUDIT_OUTPUT" | grep -ic "critical" 2>/dev/null || echo "0")
+    CRITICAL_COUNT=$(echo "$CRITICAL_COUNT" | tail -1 | tr -d '[:space:]')
+    [ -z "$CRITICAL_COUNT" ] && CRITICAL_COUNT=0
+    if [ "$CRITICAL_COUNT" -gt 0 ]; then
+      echo "${RED}FAIL: Critical vulnerabilities found${NC}"
+      echo "$AUDIT_OUTPUT" | tail -5
+      FAILED=1
+    else
+      echo "${YELLOW}WARNING: Non-critical vulnerabilities found (not blocking)${NC}"
+    fi
   fi
+else
+  echo "${YELLOW}SKIP: No audit tool available for $LANG${NC}"
 fi
 
 # ─── Result ───

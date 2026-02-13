@@ -21,9 +21,38 @@ if [ -z "$STAGED_FILES" ]; then
   exit 0
 fi
 
+# ─── Inline manifest reader (POSIX-compatible) ───
+_lang() {
+  _MANIFEST=""
+  _ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  for _C in "$_ROOT/saascode-kit/manifest.yaml" "$_ROOT/.saascode/manifest.yaml" "$_ROOT/manifest.yaml" "$_ROOT/saascode-kit.yaml"; do
+    [ -f "$_C" ] && _MANIFEST="$_C" && break
+  done
+  [ -z "$_MANIFEST" ] && echo "typescript" && return
+  _VAL=$(awk '/^stack:/ { in_s=1; next } /^[a-z]/ { in_s=0 } in_s && /^  language:/ { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#.*$/, "", val); gsub(/^"|"$/, "", val); print val; exit }' "$_MANIFEST")
+  echo "${_VAL:-typescript}"
+}
+
+LANG=$(_lang)
+
+# Determine file extension filter based on language
+case "$LANG" in
+  typescript)       SRC_FILTER='\.(ts|tsx|js|jsx)$' ;;
+  javascript)       SRC_FILTER='\.(js|jsx)$' ;;
+  python)           SRC_FILTER='\.py$' ;;
+  ruby)             SRC_FILTER='\.rb$' ;;
+  go)               SRC_FILTER='\.go$' ;;
+  java|kotlin)      SRC_FILTER='\.(java|kt)$' ;;
+  php)              SRC_FILTER='\.php$' ;;
+  rust)             SRC_FILTER='\.rs$' ;;
+  *)                SRC_FILTER='\.(ts|tsx|js|jsx|py|rb|go|java|kt|php|rs)$' ;;
+esac
+
+ALL_SRC_FILTER='\.(ts|tsx|js|jsx|py|rb|go|java|kt|php|rs)$'
+
 # ─── 1. Hardcoded Secrets ───
 echo "\n${YELLOW}[1/7] Checking for hardcoded secrets...${NC}"
-SECRETS=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx|py|rb|go|java|json|yaml|yml)$' | xargs grep -lE '(password|secret|api[_-]?key|token|private[_-]?key)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.\|\.d\.ts\|interface\|type \|\.example\|\.sample')
+SECRETS=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx|py|rb|go|java|json|yaml|yml|kt|php|rs)$' | xargs grep -lE '(password|secret|api[_-]?key|token|private[_-]?key)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.\|\.d\.ts\|interface\|type \|\.example\|\.sample\|_test\.py\|_test\.go\|Test\.java')
 
 if [ -n "$SECRETS" ]; then
   echo "${RED}BLOCKED: Possible hardcoded secrets detected:${NC}"
@@ -50,32 +79,79 @@ fi
 echo "\n${YELLOW}[3/7] Checking for security vulnerabilities...${NC}"
 SECURITY_ISSUES=""
 
-# eval() usage (code injection risk)
-EVAL_USAGE=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$' | xargs grep -nE '\beval\s*\(' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.')
+# eval() usage (code injection risk) — language-aware
+case "$LANG" in
+  typescript|javascript)
+    EVAL_USAGE=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$' | xargs grep -nE '\beval\s*\(' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.')
+    ;;
+  python)
+    EVAL_USAGE=$(echo "$STAGED_FILES" | grep -E '\.py$' | xargs grep -nE '\b(eval|exec)\s*\(' 2>/dev/null | grep -v 'test_\|_test\.py\|conftest')
+    ;;
+  ruby|php)
+    EVAL_USAGE=$(echo "$STAGED_FILES" | grep -E '\.(rb|php)$' | xargs grep -nE '\beval\s*\(' 2>/dev/null | grep -v '_spec\.rb\|_test\.rb\|Test\.php')
+    ;;
+  *)
+    EVAL_USAGE=""
+    ;;
+esac
 if [ -n "$EVAL_USAGE" ]; then
-  SECURITY_ISSUES="${SECURITY_ISSUES}\n  ${RED}eval() usage (code injection risk):${NC}\n${EVAL_USAGE}"
+  SECURITY_ISSUES="${SECURITY_ISSUES}\n  ${RED}eval()/exec() usage (code injection risk):${NC}\n${EVAL_USAGE}"
 fi
 
-# dangerouslySetInnerHTML (XSS risk)
+# XSS patterns — framework-aware
 XSS_USAGE=$(echo "$STAGED_FILES" | grep -E '\.(tsx|jsx)$' | xargs grep -nE 'dangerouslySetInnerHTML' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.')
+if [ -z "$XSS_USAGE" ]; then
+  # Vue v-html
+  XSS_USAGE=$(echo "$STAGED_FILES" | grep -E '\.vue$' | xargs grep -nE 'v-html' 2>/dev/null)
+fi
+if [ -z "$XSS_USAGE" ]; then
+  # Svelte {@html}
+  XSS_USAGE=$(echo "$STAGED_FILES" | grep -E '\.svelte$' | xargs grep -nE '\{@html' 2>/dev/null)
+fi
+if [ -z "$XSS_USAGE" ]; then
+  # Angular [innerHTML]
+  XSS_USAGE=$(echo "$STAGED_FILES" | grep -E '\.component\.(html|ts)$' | xargs grep -nE '\[innerHTML\]' 2>/dev/null)
+fi
 if [ -n "$XSS_USAGE" ]; then
-  SECURITY_ISSUES="${SECURITY_ISSUES}\n  ${RED}dangerouslySetInnerHTML (XSS risk):${NC}\n${XSS_USAGE}"
+  SECURITY_ISSUES="${SECURITY_ISSUES}\n  ${RED}XSS risk (innerHTML/v-html/{@html}):${NC}\n${XSS_USAGE}"
 fi
 
-# SQL injection patterns (raw queries with interpolation)
-SQL_INJECTION=$(echo "$STAGED_FILES" | grep -E '\.(ts|js)$' | xargs grep -nE '\$queryRaw`.*\$\{|\$executeRaw`.*\$\{|\.query\(`.*\$\{' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.\|Prisma\.sql')
+# SQL injection patterns — language-aware
+case "$LANG" in
+  typescript|javascript)
+    SQL_INJECTION=$(echo "$STAGED_FILES" | grep -E '\.(ts|js)$' | xargs grep -nE '\$queryRaw`.*\$\{|\$executeRaw`.*\$\{|\.query\(`.*\$\{' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.\|Prisma\.sql')
+    ;;
+  python)
+    SQL_INJECTION=$(echo "$STAGED_FILES" | grep -E '\.py$' | xargs grep -nE 'cursor\.execute\(f"|\.raw\(f"|text\(f"' 2>/dev/null | grep -v 'test_\|_test\.py')
+    ;;
+  go)
+    SQL_INJECTION=$(echo "$STAGED_FILES" | grep -E '\.go$' | xargs grep -nE 'db\.(Query|Exec)\(".*\+' 2>/dev/null | grep -v '_test\.go')
+    ;;
+  java)
+    SQL_INJECTION=$(echo "$STAGED_FILES" | grep -E '\.java$' | xargs grep -nE 'Statement.*execute\("|createQuery\(".*\+' 2>/dev/null | grep -v 'Test\.java')
+    ;;
+  ruby)
+    SQL_INJECTION=$(echo "$STAGED_FILES" | grep -E '\.rb$' | xargs grep -nE '\.where\(".*#\{|\.execute\(".*#\{' 2>/dev/null | grep -v '_spec\.rb\|_test\.rb')
+    ;;
+  php)
+    SQL_INJECTION=$(echo "$STAGED_FILES" | grep -E '\.php$' | xargs grep -nE '->query\("|mysql_query\(' 2>/dev/null | grep -v 'Test\.php')
+    ;;
+  *)
+    SQL_INJECTION=""
+    ;;
+esac
 if [ -n "$SQL_INJECTION" ]; then
   SECURITY_ISSUES="${SECURITY_ISSUES}\n  ${RED}Raw SQL with interpolation (injection risk):${NC}\n${SQL_INJECTION}"
 fi
 
 # Disabled security (CORS *, no-verify, --insecure)
-DISABLED_SECURITY=$(echo "$STAGED_FILES" | grep -E '\.(ts|js|json|yaml|yml)$' | xargs grep -nE "origin:\s*['\"]?\*['\"]?|--no-verify|--insecure|rejectUnauthorized:\s*false|NODE_TLS_REJECT_UNAUTHORIZED" 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.')
+DISABLED_SECURITY=$(echo "$STAGED_FILES" | grep -E '\.(ts|js|json|yaml|yml|py|rb|go|java|php)$' | xargs grep -nE "origin:\s*['\"]?\*['\"]?|--no-verify|--insecure|rejectUnauthorized:\s*false|NODE_TLS_REJECT_UNAUTHORIZED|verify\s*=\s*False" 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.\|_test\.')
 if [ -n "$DISABLED_SECURITY" ]; then
   SECURITY_ISSUES="${SECURITY_ISSUES}\n  ${YELLOW}Disabled security check:${NC}\n${DISABLED_SECURITY}"
 fi
 
 # Sensitive data in URLs (tokens/keys in query params)
-URL_SECRETS=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$' | xargs grep -nE 'https?://[^"'\'']*[?&](token|key|secret|password|api_key)=' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.\|\.example')
+URL_SECRETS=$(echo "$STAGED_FILES" | grep -E "$ALL_SRC_FILTER" | xargs grep -nE 'https?://[^"'\'']*[?&](token|key|secret|password|api_key)=' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.\|\.example\|_test\.')
 if [ -n "$URL_SECRETS" ]; then
   SECURITY_ISSUES="${SECURITY_ISSUES}\n  ${RED}Secrets in URL query params:${NC}\n${URL_SECRETS}"
 fi
@@ -90,7 +166,29 @@ fi
 
 # ─── 4. Debug Statements ───
 echo "\n${YELLOW}[4/7] Checking for debug statements...${NC}"
-DEBUG=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$' | xargs grep -nE '(console\.(log|debug|warn)\(|debugger;)' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.' | head -10)
+case "$LANG" in
+  typescript|javascript)
+    DEBUG=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$' | xargs grep -nE '(console\.(log|debug|warn)\(|debugger;)' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.' | head -10)
+    ;;
+  python)
+    DEBUG=$(echo "$STAGED_FILES" | grep -E '\.py$' | xargs grep -nE '(breakpoint\(\)|pdb\.set_trace\(\)|print\()' 2>/dev/null | grep -v 'test_\|_test\.py\|conftest' | head -10)
+    ;;
+  ruby)
+    DEBUG=$(echo "$STAGED_FILES" | grep -E '\.rb$' | xargs grep -nE '(binding\.pry|byebug|puts )' 2>/dev/null | grep -v '_spec\.rb\|_test\.rb' | head -10)
+    ;;
+  go)
+    DEBUG=$(echo "$STAGED_FILES" | grep -E '\.go$' | xargs grep -nE '(fmt\.Println|fmt\.Printf)' 2>/dev/null | grep -v '_test\.go' | head -10)
+    ;;
+  java|kotlin)
+    DEBUG=$(echo "$STAGED_FILES" | grep -E '\.(java|kt)$' | xargs grep -nE '(System\.out\.print|\.printStackTrace\(\))' 2>/dev/null | grep -v 'Test\.java\|Test\.kt' | head -10)
+    ;;
+  php)
+    DEBUG=$(echo "$STAGED_FILES" | grep -E '\.php$' | xargs grep -nE '(var_dump\(|print_r\(|dd\()' 2>/dev/null | grep -v 'Test\.php' | head -10)
+    ;;
+  *)
+    DEBUG=$(echo "$STAGED_FILES" | grep -E "$ALL_SRC_FILTER" | xargs grep -nE '(console\.(log|debug)\(|debugger;|breakpoint\(\)|pdb\.set_trace|binding\.pry|fmt\.Println|System\.out\.print|var_dump\()' 2>/dev/null | head -10)
+    ;;
+esac
 
 if [ -n "$DEBUG" ]; then
   echo "${YELLOW}WARNING: Debug statements found (not blocking):${NC}"
@@ -101,7 +199,29 @@ fi
 
 # ─── 5. Sensitive Data Logging ───
 echo "\n${YELLOW}[5/7] Checking for sensitive data in logs...${NC}"
-SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$' | xargs grep -nE 'console\.(log|info|warn|error|debug)\(.*\b(password|token|secret|apiKey|auth_token|cookie|session|credit.?card)\b' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.')
+case "$LANG" in
+  typescript|javascript)
+    SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx|js|jsx)$' | xargs grep -nE 'console\.(log|info|warn|error|debug)\(.*\b(password|token|secret|apiKey|auth_token|cookie|session|credit.?card)\b' 2>/dev/null | grep -v 'node_modules\|\.test\.\|\.spec\.')
+    ;;
+  python)
+    SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E '\.py$' | xargs grep -nE '(print|logging\.(info|debug|warning|error))\(.*\b(password|token|secret|api_key|auth_token|cookie|session|credit.?card)\b' 2>/dev/null | grep -v 'test_\|_test\.py')
+    ;;
+  go)
+    SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E '\.go$' | xargs grep -nE '(fmt\.Print|log\.Print)\w*\(.*\b(password|token|secret|apiKey|auth_token|cookie|session)\b' 2>/dev/null | grep -v '_test\.go')
+    ;;
+  java|kotlin)
+    SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E '\.(java|kt)$' | xargs grep -nE '(System\.out\.print|logger\.(info|debug|warn))\(.*\b(password|token|secret|apiKey|auth_token|cookie|session)\b' 2>/dev/null | grep -v 'Test\.java\|Test\.kt')
+    ;;
+  ruby)
+    SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E '\.rb$' | xargs grep -nE '(puts|logger\.(info|debug|warn))\s.*\b(password|token|secret|api_key|auth_token|cookie|session)\b' 2>/dev/null | grep -v '_spec\.rb\|_test\.rb')
+    ;;
+  php)
+    SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E '\.php$' | xargs grep -nE '(var_dump|print_r|error_log|Log::)\(.*\b(password|token|secret|api_key|auth_token|cookie|session)\b' 2>/dev/null | grep -v 'Test\.php')
+    ;;
+  *)
+    SENSITIVE_LOGS=$(echo "$STAGED_FILES" | grep -E "$ALL_SRC_FILTER" | xargs grep -nE '(console\.log|print|logging\.|fmt\.Print|System\.out|logger\.)\(.*\b(password|token|secret|api.?key|auth_token|cookie|session|credit.?card)\b' 2>/dev/null | grep -v '\.test\.\|\.spec\.\|_test\.')
+    ;;
+esac
 
 if [ -n "$SENSITIVE_LOGS" ]; then
   echo "${RED}BLOCKED: Sensitive data in log statements:${NC}"

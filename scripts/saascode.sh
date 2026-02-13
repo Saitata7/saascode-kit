@@ -116,12 +116,67 @@ cmd_verify() {
   else
     # Inline basic verify
     source "$_LIB"
+    local LANG=$(read_manifest "stack.language" "typescript")
     local DB=$(read_manifest "stack.backend.database" "")
 
     echo "Checking environment..."
+    echo "  Stack: $LANG"
     echo ""
-    node -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Node.js $(node -v)" || echo "  ${RED}✗${NC} Node.js not installed"
-    npm -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} npm $(npm -v)" || echo "  ${RED}✗${NC} npm not installed"
+
+    # Language runtime & package manager
+    case "$LANG" in
+      typescript|javascript)
+        node -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Node.js $(node -v)" || echo "  ${RED}✗${NC} Node.js not installed"
+        if [ -f "$ROOT/pnpm-lock.yaml" ]; then
+          pnpm -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} pnpm $(pnpm -v)" || echo "  ${RED}✗${NC} pnpm not installed"
+        elif [ -f "$ROOT/yarn.lock" ]; then
+          yarn -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} yarn $(yarn -v)" || echo "  ${RED}✗${NC} yarn not installed"
+        else
+          npm -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} npm $(npm -v)" || echo "  ${RED}✗${NC} npm not installed"
+        fi
+        [ -d "$ROOT/node_modules" ] && echo "  ${GREEN}✓${NC} Dependencies installed" || echo "  ${RED}✗${NC} Run: npm install"
+        ;;
+      python)
+        python3 --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Python $(python3 --version 2>&1 | awk '{print $2}')" || echo "  ${RED}✗${NC} Python3 not installed"
+        pip3 --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} pip $(pip3 --version 2>&1 | awk '{print $2}')" || echo "  ${RED}✗${NC} pip not installed"
+        if [ -f "$ROOT/Pipfile" ]; then
+          pipenv --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} pipenv installed" || echo "  ${YELLOW}—${NC} pipenv not installed (Pipfile found)"
+        elif [ -f "$ROOT/poetry.lock" ]; then
+          poetry --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} poetry installed" || echo "  ${YELLOW}—${NC} poetry not installed (poetry.lock found)"
+        fi
+        [ -d "$ROOT/venv" ] || [ -d "$ROOT/.venv" ] && echo "  ${GREEN}✓${NC} Virtual environment found" || echo "  ${YELLOW}—${NC} No venv found"
+        ;;
+      go)
+        go version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Go $(go version 2>&1 | awk '{print $3}')" || echo "  ${RED}✗${NC} Go not installed"
+        [ -f "$ROOT/go.mod" ] && echo "  ${GREEN}✓${NC} go.mod found" || echo "  ${YELLOW}—${NC} No go.mod"
+        ;;
+      java)
+        java -version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Java $(java -version 2>&1 | head -1 | awk -F'\"' '{print $2}')" || echo "  ${RED}✗${NC} JDK not installed"
+        if [ -f "$ROOT/pom.xml" ] || find "$ROOT" -maxdepth 2 -name "pom.xml" -print -quit 2>/dev/null | grep -q .; then
+          mvn -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Maven $(mvn -v 2>&1 | head -1 | awk '{print $3}')" || echo "  ${RED}✗${NC} Maven not installed (pom.xml found)"
+        elif [ -f "$ROOT/build.gradle" ] || [ -f "$ROOT/build.gradle.kts" ]; then
+          gradle -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Gradle installed" || echo "  ${RED}✗${NC} Gradle not installed (build.gradle found)"
+        fi
+        ;;
+      ruby)
+        ruby -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Ruby $(ruby -v 2>&1 | awk '{print $2}')" || echo "  ${RED}✗${NC} Ruby not installed"
+        bundle -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Bundler $(bundle -v 2>&1 | awk '{print $3}')" || echo "  ${RED}✗${NC} Bundler not installed"
+        [ -f "$ROOT/Gemfile.lock" ] && echo "  ${GREEN}✓${NC} Gems locked" || echo "  ${YELLOW}—${NC} No Gemfile.lock"
+        ;;
+      rust)
+        rustc --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Rust $(rustc --version 2>&1 | awk '{print $2}')" || echo "  ${RED}✗${NC} Rust not installed"
+        cargo --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Cargo $(cargo --version 2>&1 | awk '{print $2}')" || echo "  ${RED}✗${NC} Cargo not installed"
+        [ -f "$ROOT/Cargo.lock" ] && echo "  ${GREEN}✓${NC} Cargo.lock found" || echo "  ${YELLOW}—${NC} No Cargo.lock"
+        ;;
+      php)
+        php -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} PHP $(php -v 2>&1 | head -1 | awk '{print $2}')" || echo "  ${RED}✗${NC} PHP not installed"
+        composer --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Composer $(composer --version 2>&1 | awk '{print $3}')" || echo "  ${RED}✗${NC} Composer not installed"
+        [ -f "$ROOT/vendor/autoload.php" ] && echo "  ${GREEN}✓${NC} Dependencies installed" || echo "  ${RED}✗${NC} Run: composer install"
+        ;;
+      *)
+        echo "  ${YELLOW}—${NC} Unknown language: $LANG"
+        ;;
+    esac
 
     # Database check based on manifest
     case "$DB" in
@@ -145,7 +200,6 @@ cmd_verify() {
         ;;
     esac
 
-    [ -d "$ROOT/node_modules" ] && echo "  ${GREEN}✓${NC} Dependencies installed" || echo "  ${RED}✗${NC} Run: npm install"
     [ -f "$ROOT/.env" ] && echo "  ${GREEN}✓${NC} Root .env exists" || echo "  ${YELLOW}—${NC} No root .env"
     git -C "$ROOT" status >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Git repository" || echo "  ${RED}✗${NC} Not a git repo"
     echo ""
@@ -505,6 +559,15 @@ cmd_intent() {
   fi
 }
 
+cmd_report() {
+  if [ -f "$SCRIPTS_DIR/report-cli.sh" ]; then
+    bash "$SCRIPTS_DIR/report-cli.sh" "$@"
+  else
+    echo "${RED}Error: report-cli.sh not found at $SCRIPTS_DIR${NC}"
+    exit 1
+  fi
+}
+
 cmd_check_file() {
   local FILE="${1}"
   if [ -z "$FILE" ]; then
@@ -773,6 +836,9 @@ cmd_help() {
   echo "  ${CYAN}Tracking:${NC}"
   printf "  %-28s %s\n" "saascode-kit intent" "View AI edit intent log"
   printf "  %-28s %s\n" "saascode-kit intent --summary" "Session summaries"
+  printf "  %-28s %s\n" "saascode-kit report" "View detected issues"
+  printf "  %-28s %s\n" "saascode-kit report --github" "File issues to GitHub"
+  printf "  %-28s %s\n" "saascode-kit report --summary" "Issue counts by category"
   echo ""
   echo "  ${CYAN}Deployment:${NC}"
   printf "  %-28s %s\n" "saascode-kit predeploy" "Run pre-deployment gates"
@@ -833,6 +899,7 @@ case "$COMMAND" in
   status)     cmd_status "$@" ;;
   check-file) cmd_check_file "$@" ;;
   intent)     cmd_intent "$@" ;;
+  report)     cmd_report "$@" ;;
   help|--help|-h)  cmd_help ;;
   *)
     echo "${RED}Unknown command: $COMMAND${NC}"

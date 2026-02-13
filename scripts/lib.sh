@@ -152,6 +152,262 @@ load_manifest_vars() {
   export "TMPL_stack.backend.framework=$BACKEND_FRAMEWORK"
 }
 
+# ═══════════════════════════════════════════════════════════
+# Universal Detection Helpers
+# Read from manifest vars with auto-detection fallbacks.
+# Call load_manifest_vars() before using these.
+# ═══════════════════════════════════════════════════════════
+
+# ─── try_cmd: Run command with graceful skip if tool missing ───
+try_cmd() {
+  local CMD="$1"; shift
+  if command -v "$CMD" >/dev/null 2>&1; then
+    "$CMD" "$@"
+  else
+    echo "SKIP: $CMD not found" >&2
+    return 127
+  fi
+}
+
+# ─── detect_pkg_manager: npm/yarn/pnpm/pip/gem/go/mvn/gradle ───
+detect_pkg_manager() {
+  local DIR="${1:-.}"
+  local ROOT="${_LIB_ROOT:-$(find_root)}"
+
+  # Lockfile detection first (most specific)
+  [ -f "$DIR/yarn.lock" ] || [ -f "$ROOT/yarn.lock" ] && echo "yarn" && return
+  [ -f "$DIR/pnpm-lock.yaml" ] || [ -f "$ROOT/pnpm-lock.yaml" ] && echo "pnpm" && return
+  [ -f "$DIR/package-lock.json" ] || [ -f "$ROOT/package-lock.json" ] && echo "npm" && return
+  [ -f "$DIR/Pipfile.lock" ] || [ -f "$DIR/requirements.txt" ] || [ -f "$ROOT/Pipfile.lock" ] || [ -f "$ROOT/requirements.txt" ] && echo "pip" && return
+  [ -f "$DIR/Gemfile.lock" ] || [ -f "$ROOT/Gemfile.lock" ] && echo "gem" && return
+  [ -f "$DIR/go.sum" ] || [ -f "$ROOT/go.sum" ] && echo "go" && return
+  [ -f "$DIR/build.gradle" ] || [ -f "$DIR/build.gradle.kts" ] && echo "gradle" && return
+  [ -f "$DIR/pom.xml" ] || [ -f "$ROOT/pom.xml" ] && echo "mvn" && return
+  [ -f "$DIR/Cargo.lock" ] || [ -f "$ROOT/Cargo.lock" ] && echo "cargo" && return
+  [ -f "$DIR/composer.lock" ] || [ -f "$ROOT/composer.lock" ] && echo "composer" && return
+
+  # Fall back to language from manifest
+  case "${LANGUAGE:-}" in
+    typescript|javascript) echo "npm" ;;
+    python)                echo "pip" ;;
+    ruby)                  echo "gem" ;;
+    go)                    echo "go" ;;
+    java|kotlin)           echo "mvn" ;;
+    rust)                  echo "cargo" ;;
+    php)                   echo "composer" ;;
+    *)                     echo "npm" ;;
+  esac
+}
+
+# ─── detect_build_cmd: Build command for a path ───
+detect_build_cmd() {
+  local DIR="${1:-.}"
+  local PKG
+  PKG="$(detect_pkg_manager "$DIR")"
+
+  case "$PKG" in
+    npm)      echo "npm --prefix $DIR run build" ;;
+    yarn)     echo "yarn --cwd $DIR build" ;;
+    pnpm)     echo "pnpm --dir $DIR run build" ;;
+    pip)
+      if [ -f "$DIR/setup.py" ] || [ -f "$DIR/pyproject.toml" ]; then
+        echo "python -m build --outdir $DIR/dist $DIR"
+      else
+        echo ""
+      fi
+      ;;
+    go)       echo "go build ./$DIR/..." ;;
+    mvn)      echo "mvn -f $DIR/pom.xml package -q" ;;
+    gradle)   echo "gradle -p $DIR build" ;;
+    cargo)    echo "cargo build --manifest-path $DIR/Cargo.toml" ;;
+    gem)      echo "" ;; # Rails doesn't have a build step typically
+    composer) echo "" ;;
+    *)        echo "" ;;
+  esac
+}
+
+# ─── detect_test_cmd: Test command for a path ───
+detect_test_cmd() {
+  local DIR="${1:-.}"
+  local PKG
+  PKG="$(detect_pkg_manager "$DIR")"
+
+  case "$PKG" in
+    npm)      echo "npm --prefix $DIR test" ;;
+    yarn)     echo "yarn --cwd $DIR test" ;;
+    pnpm)     echo "pnpm --dir $DIR test" ;;
+    pip)
+      [ -f "$DIR/pytest.ini" ] || [ -f "$DIR/pyproject.toml" ] && echo "pytest $DIR" && return
+      echo "python -m pytest $DIR"
+      ;;
+    go)       echo "go test ./$DIR/..." ;;
+    mvn)      echo "mvn -f $DIR/pom.xml test -q" ;;
+    gradle)   echo "gradle -p $DIR test" ;;
+    cargo)    echo "cargo test --manifest-path $DIR/Cargo.toml" ;;
+    gem)      echo "bundle exec rspec" ;;
+    composer) echo "php $DIR/vendor/bin/phpunit" ;;
+    *)        echo "" ;;
+  esac
+}
+
+# ─── detect_typecheck_cmd: Type checking (tsc/mypy/go vet) ───
+detect_typecheck_cmd() {
+  case "${LANGUAGE:-}" in
+    typescript)
+      local PKG
+      PKG="$(detect_pkg_manager)"
+      case "$PKG" in
+        npm)  echo "npm run typecheck" ;;
+        yarn) echo "yarn typecheck" ;;
+        pnpm) echo "pnpm typecheck" ;;
+        *)    echo "npx tsc --noEmit" ;;
+      esac
+      ;;
+    python)  echo "mypy ." ;;
+    go)      echo "go vet ./..." ;;
+    java)    echo "" ;; # javac handles this during build
+    rust)    echo "cargo check" ;;
+    *)       echo "" ;;
+  esac
+}
+
+# ─── detect_audit_cmd: Security audit command ───
+detect_audit_cmd() {
+  local PKG
+  PKG="$(detect_pkg_manager)"
+
+  case "$PKG" in
+    npm)      echo "npm audit --audit-level=critical" ;;
+    yarn)     echo "yarn audit --level critical" ;;
+    pnpm)     echo "pnpm audit --audit-level critical" ;;
+    pip)      command -v pip-audit >/dev/null 2>&1 && echo "pip-audit" && return
+              command -v safety >/dev/null 2>&1 && echo "safety check" && return
+              echo "" ;;
+    gem)      echo "bundle-audit check" ;;
+    go)       echo "govulncheck ./..." ;;
+    mvn)      echo "mvn org.owasp:dependency-check-maven:check -q" ;;
+    gradle)   echo "" ;;
+    cargo)    echo "cargo audit" ;;
+    composer) echo "composer audit" ;;
+    *)        echo "" ;;
+  esac
+}
+
+# ─── get_source_extensions: File extensions for current language ───
+get_source_extensions() {
+  case "${LANGUAGE:-typescript}" in
+    typescript)       echo 'ts|tsx' ;;
+    javascript)       echo 'js|jsx' ;;
+    python)           echo 'py' ;;
+    ruby)             echo 'rb' ;;
+    go)               echo 'go' ;;
+    java|kotlin)      echo 'java|kt' ;;
+    rust)             echo 'rs' ;;
+    php)              echo 'php' ;;
+    *)                echo 'ts|tsx|js|jsx' ;;
+  esac
+}
+
+# ─── get_excluded_dirs: Directories to exclude from searches ───
+get_excluded_dirs() {
+  local COMMON="node_modules|dist|.git|coverage"
+  case "${LANGUAGE:-typescript}" in
+    typescript|javascript) echo "${COMMON}|.next|.turbo" ;;
+    python)                echo "${COMMON}|__pycache__|venv|.venv|.tox|*.egg-info" ;;
+    ruby)                  echo "${COMMON}|vendor/bundle|tmp" ;;
+    go)                    echo "${COMMON}|vendor" ;;
+    java|kotlin)           echo "${COMMON}|target|build|.gradle" ;;
+    rust)                  echo "${COMMON}|target" ;;
+    php)                   echo "${COMMON}|vendor" ;;
+    *)                     echo "$COMMON" ;;
+  esac
+}
+
+# ─── log_issue: Append issue to daily JSONL log ───
+# Usage: log_issue "source" "severity" "category" "message" ["file"] ["line"] ["detail"]
+# severity: critical | warning | info
+# source: check-file | full-audit | pre-deploy | pre-commit | pre-push
+log_issue() {
+  local _ROOT="${_LIB_ROOT:-$(find_root)}"
+  local _DIR="$_ROOT/.saascode/logs"
+  mkdir -p "$_DIR" 2>/dev/null
+  local _FILE="$_DIR/issues-$(date -u +%Y-%m-%d).jsonl"
+  jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg source "$1" --arg severity "$2" --arg category "$3" \
+    --arg message "$4" --arg file "${5:-}" --arg line "${6:-}" \
+    --arg detail "${7:-}" \
+    '{ts:$ts,source:$source,severity:$severity,category:$category,message:$message,file:$file,line:$line,detail:$detail}' \
+    >> "$_FILE" 2>/dev/null
+}
+
+# ─── get_test_file_patterns: Test file glob patterns ───
+get_test_file_patterns() {
+  case "${LANGUAGE:-typescript}" in
+    typescript)       echo '*.test.ts|*.spec.ts|*.test.tsx|*.spec.tsx' ;;
+    javascript)       echo '*.test.js|*.spec.js|*.test.jsx|*.spec.jsx' ;;
+    python)           echo 'test_*.py|*_test.py' ;;
+    ruby)             echo '*_spec.rb|*_test.rb' ;;
+    go)               echo '*_test.go' ;;
+    java|kotlin)      echo '*Test.java|*Tests.java|*Test.kt' ;;
+    rust)             echo '' ;; # Tests are inline in Rust
+    php)              echo '*Test.php|*_test.php' ;;
+    *)                echo '*.test.*|*.spec.*' ;;
+  esac
+}
+
+# ─── get_debug_patterns: Debug statement patterns ───
+get_debug_patterns() {
+  case "${LANGUAGE:-typescript}" in
+    typescript|javascript) echo 'console\.log\|console\.debug\|debugger' ;;
+    python)                echo 'breakpoint()\|pdb\.set_trace()\|print(' ;;
+    ruby)                  echo 'binding\.pry\|byebug\|puts \|pp ' ;;
+    go)                    echo 'fmt\.Println\|fmt\.Printf\|log\.Print' ;;
+    java|kotlin)           echo 'System\.out\.print\|\.printStackTrace()' ;;
+    rust)                  echo 'dbg!\|println!' ;;
+    php)                   echo 'var_dump(\|print_r(\|dd(' ;;
+    *)                     echo 'console\.log\|debugger' ;;
+  esac
+}
+
+# ─── get_raw_sql_patterns: ORM-aware SQL injection patterns ───
+get_raw_sql_patterns() {
+  case "${ORM:-}" in
+    prisma)      echo '\$queryRaw\s*`\|\$executeRaw\s*`' ;;
+    typeorm)     echo '\.query\s*(\s*`\|\.query\s*(\s*".*+' ;;
+    sequelize)   echo '\.query\s*(\s*`\|sequelize\.query\s*(' ;;
+    drizzle)     echo 'sql\.raw\s*`' ;;
+    mongoose)    echo '\$where.*function' ;;
+    django)      echo 'cursor\.execute\s*(\s*f"\|\.raw\s*(\s*f"\|\.extra\s*(' ;;
+    sqlalchemy)  echo 'text\s*(\s*f"\|execute\s*(\s*f"\|\.from_statement' ;;
+    *)
+      # Fallback by language
+      case "${LANGUAGE:-}" in
+        python)     echo 'cursor\.execute\s*(\s*f"\|\.raw\s*(\s*f"' ;;
+        ruby)       echo '\.execute\s*(\s*"\|\.where\s*(\s*".*#{' ;;
+        go)         echo 'db\.Query\s*(\s*".*+\|db\.Exec\s*(\s*".*+' ;;
+        java)       echo 'Statement\.execute\|\.createQuery\s*(\s*".*+' ;;
+        php)        echo '->query\s*(\s*"\|mysql_query\s*(' ;;
+        *)          echo '\$queryRaw\s*`\|\$executeRaw\s*`' ;;
+      esac
+      ;;
+  esac
+}
+
+# ─── get_migration_check_cmd: Migration status command ───
+get_migration_check_cmd() {
+  local BE="${BACKEND_PATH:-apps/api}"
+  case "${ORM:-}" in
+    prisma)      echo "cd $BE && npx prisma migrate status" ;;
+    typeorm)     echo "cd $BE && npx typeorm migration:show" ;;
+    sequelize)   echo "cd $BE && npx sequelize-cli db:migrate:status" ;;
+    drizzle)     echo "cd $BE && npx drizzle-kit check" ;;
+    django)      echo "python manage.py showmigrations --plan" ;;
+    sqlalchemy)  echo "alembic current" ;;
+    mongoose)    echo "" ;; # MongoDB has no migrations typically
+    *)           echo "" ;;
+  esac
+}
+
 # ─── Replace template placeholders ───
 replace_placeholders() {
   local FILE="$1"

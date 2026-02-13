@@ -16,6 +16,20 @@ PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 CONTEXT_DIR="$PROJECT_ROOT/.claude/context"
 OUTPUT="$CONTEXT_DIR/project-map.md"
 
+# Source shared library for detection helpers
+_LIB="$(dirname "$0")/lib.sh"
+[ -f "$_LIB" ] || _LIB="$PROJECT_ROOT/saascode-kit/scripts/lib.sh"
+[ -f "$_LIB" ] || _LIB="$PROJECT_ROOT/.saascode/scripts/lib.sh"
+if [ -f "$_LIB" ]; then
+  source "$_LIB"
+  export _LIB_ROOT="$PROJECT_ROOT"
+  MANIFEST=""
+  for CANDIDATE in "$PROJECT_ROOT/saascode-kit/manifest.yaml" "$PROJECT_ROOT/.saascode/manifest.yaml" "$PROJECT_ROOT/manifest.yaml" "$PROJECT_ROOT/saascode-kit.yaml"; do
+    [ -f "$CANDIDATE" ] && MANIFEST="$CANDIDATE" && break
+  done
+  [ -n "$MANIFEST" ] && load_manifest_vars "$MANIFEST"
+fi
+
 # ─── Read manifest.yaml values ───
 read_manifest() {
   local KEY="$1"
@@ -50,28 +64,34 @@ read_manifest() {
 
 # Read paths from manifest with sensible fallbacks
 PROJECT_NAME=$(read_manifest "project.name" "Project")
-BACKEND_PATH=$(read_manifest "paths.backend" "apps/api")
-FRONTEND_PATH=$(read_manifest "paths.frontend" "apps/portal")
-SCHEMA_REL=$(read_manifest "paths.schema" "${BACKEND_PATH}/prisma/schema.prisma")
-API_CLIENT_REL=$(read_manifest "paths.api_client" "${FRONTEND_PATH}/src/lib/api")
-COMPONENTS_REL=$(read_manifest "paths.components" "${FRONTEND_PATH}/src/components")
+BACKEND_DIR=$(read_manifest "paths.backend" "apps/api")
+FRONTEND_DIR=$(read_manifest "paths.frontend" "apps/portal")
+SCHEMA_REL=$(read_manifest "paths.schema" "${BACKEND_DIR}/prisma/schema.prisma")
+API_CLIENT_REL=$(read_manifest "paths.api_client" "${FRONTEND_DIR}/src/lib/api")
+COMPONENTS_REL=$(read_manifest "paths.components" "${FRONTEND_DIR}/src/components")
+
+BE_FW="${BACKEND_FRAMEWORK:-$(read_manifest "stack.backend.framework" "nestjs")}"
+FE_FW="${FRONTEND_FRAMEWORK:-$(read_manifest "stack.frontend.framework" "nextjs")}"
+ORM_NAME="${ORM:-$(read_manifest "stack.backend.orm" "prisma")}"
+LANG="${LANGUAGE:-$(read_manifest "stack.language" "typescript")}"
+SRC_EXT="$(get_source_extensions 2>/dev/null || echo 'ts|tsx')"
 
 # Build absolute paths
 SCHEMA="$PROJECT_ROOT/$SCHEMA_REL"
-CONTROLLERS_DIR="$PROJECT_ROOT/$BACKEND_PATH/src/modules"
-PAGES_DIR="$PROJECT_ROOT/$FRONTEND_PATH/src/app/(dashboard)"
+CONTROLLERS_DIR="$PROJECT_ROOT/$BACKEND_DIR/src/modules"
+PAGES_DIR="$PROJECT_ROOT/$FRONTEND_DIR/src/app/(dashboard)"
 COMPONENTS_DIR="$PROJECT_ROOT/$COMPONENTS_REL"
 API_CLIENT_DIR="$PROJECT_ROOT/$API_CLIENT_REL"
 
 # Fallback: detect common structures if primary paths don't exist
 if [ ! -d "$CONTROLLERS_DIR" ]; then
-  for CANDIDATE in "$PROJECT_ROOT/$BACKEND_PATH/src/controllers" "$PROJECT_ROOT/src/modules" "$PROJECT_ROOT/src/controllers"; do
+  for CANDIDATE in "$PROJECT_ROOT/$BACKEND_DIR/src/controllers" "$PROJECT_ROOT/src/modules" "$PROJECT_ROOT/src/controllers" "$PROJECT_ROOT/$BACKEND_DIR/app/controllers" "$PROJECT_ROOT/$BACKEND_DIR/src"; do
     [ -d "$CANDIDATE" ] && CONTROLLERS_DIR="$CANDIDATE" && break
   done
 fi
 
 if [ ! -d "$PAGES_DIR" ]; then
-  for CANDIDATE in "$PROJECT_ROOT/$FRONTEND_PATH/src/app" "$PROJECT_ROOT/$FRONTEND_PATH/src/pages" "$PROJECT_ROOT/src/app" "$PROJECT_ROOT/src/pages"; do
+  for CANDIDATE in "$PROJECT_ROOT/$FRONTEND_DIR/src/app" "$PROJECT_ROOT/$FRONTEND_DIR/src/pages" "$PROJECT_ROOT/src/app" "$PROJECT_ROOT/src/pages" "$PROJECT_ROOT/$FRONTEND_DIR/src/routes"; do
     [ -d "$CANDIDATE" ] && PAGES_DIR="$CANDIDATE" && break
   done
 fi
@@ -88,49 +108,142 @@ cat > "$OUTPUT" << EOF
 EOF
 
 # ─── 1. Models ───
-echo -e "${YELLOW}[1/6] Extracting models from schema...${NC}"
-if [ -f "$SCHEMA" ]; then
-  echo "## Models" >> "$OUTPUT"
-  # Extract model names and their fields in compact format
-  awk '
-    /^model / { model=$2; fields=""; next }
-    /^}/ { if(model) { print model ": " substr(fields, 2); model="" } }
-    model && /^\s+\w/ {
-      # Skip relation-only lines and @@
-      if ($0 ~ /@@/ || $0 ~ /^\s+\/\//) next
-      field=$1
-      type=$2
-      # Skip if field starts with @@ or is empty
-      if (field ~ /^@@/) next
-      if (field == "") next
-      # Clean up type
-      gsub(/\?/, "?", type)
-      gsub(/\[\]/, "[]", type)
-      # Append
-      fields = fields "," field
-    }
-  ' "$SCHEMA" >> "$OUTPUT"
-  echo "" >> "$OUTPUT"
-  MODEL_COUNT=$(grep -c "^model " "$SCHEMA" 2>/dev/null || echo "0")
-  echo -e "  ${GREEN}Found $MODEL_COUNT models${NC}"
-else
-  # Fallback: look for TypeScript type/interface definitions as "models"
-  echo "## Models" >> "$OUTPUT"
-  echo "(No Prisma schema found at $SCHEMA_REL — scanning for TypeScript types)" >> "$OUTPUT"
-  TYPES_FOUND=$(grep -rn "export\s\+\(interface\|type\)\s" --include="*.ts" "$PROJECT_ROOT/$BACKEND_PATH/src/" 2>/dev/null | head -20)
-  if [ -n "$TYPES_FOUND" ]; then
-    echo "$TYPES_FOUND" | while read -r line; do
-      name=$(echo "$line" | sed -nE 's/.*export\s+(interface|type)\s+([A-Za-z_]+).*/\2/p')
-      file=$(echo "$line" | cut -d: -f1 | sed "s|$PROJECT_ROOT/||")
-      [ -n "$name" ] && echo "- $name ($file)" >> "$OUTPUT"
-    done
-  fi
-  echo "" >> "$OUTPUT"
-fi
+echo -e "${YELLOW}[1/6] Extracting models...${NC}"
+echo "## Models" >> "$OUTPUT"
+
+case "$ORM_NAME" in
+  prisma)
+    if [ -f "$SCHEMA" ]; then
+      awk '
+        /^model / { model=$2; fields=""; next }
+        /^}/ { if(model) { print model ": " substr(fields, 2); model="" } }
+        model && /^\s+\w/ {
+          if ($0 ~ /@@/ || $0 ~ /^\s+\/\//) next
+          field=$1; type=$2
+          if (field ~ /^@@/) next
+          if (field == "") next
+          gsub(/\?/, "?", type); gsub(/\[\]/, "[]", type)
+          fields = fields "," field
+        }
+      ' "$SCHEMA" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+      MODEL_COUNT=$(grep -c "^model " "$SCHEMA" 2>/dev/null || echo "0")
+      echo -e "  ${GREEN}Found $MODEL_COUNT models${NC}"
+    else
+      echo "(No Prisma schema found at $SCHEMA_REL)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+    fi
+    ;;
+  typeorm)
+    ENTITY_FILES=$(find "$PROJECT_ROOT/$BACKEND_DIR/src" -name "*.entity.ts" 2>/dev/null)
+    if [ -n "$ENTITY_FILES" ]; then
+      echo "$ENTITY_FILES" | while read -r file; do
+        name=$(grep -oE 'class\s+\w+' "$file" 2>/dev/null | head -1 | sed 's/class //')
+        rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+        [ -n "$name" ] && echo "- $name ($rel)" >> "$OUTPUT"
+      done
+      MODEL_COUNT=$(echo "$ENTITY_FILES" | wc -l | tr -d ' ')
+      echo -e "  ${GREEN}Found $MODEL_COUNT entities${NC}"
+    else
+      echo "(No TypeORM entities found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  django)
+    MODEL_FILES=$(find "$PROJECT_ROOT/$BACKEND_DIR" -name "models.py" 2>/dev/null)
+    if [ -n "$MODEL_FILES" ]; then
+      echo "$MODEL_FILES" | while read -r file; do
+        grep -oE 'class\s+\w+\(.*models\.Model' "$file" 2>/dev/null | while read -r line; do
+          name=$(echo "$line" | sed 's/class //;s/(.*$//')
+          rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+          echo "- $name ($rel)" >> "$OUTPUT"
+        done
+      done
+      MODEL_COUNT=$(grep -rcoE 'class\s+\w+\(.*models\.Model' --include="models.py" "$PROJECT_ROOT/$BACKEND_DIR/" 2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+      echo -e "  ${GREEN}Found $MODEL_COUNT models${NC}"
+    else
+      echo "(No Django models found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  sqlalchemy)
+    SA_FILES=$(grep -rl 'Base\|DeclarativeBase' --include="*.py" "$PROJECT_ROOT/$BACKEND_DIR/" 2>/dev/null | head -20)
+    if [ -n "$SA_FILES" ]; then
+      echo "$SA_FILES" | while read -r file; do
+        grep -oE 'class\s+\w+\(' "$file" 2>/dev/null | sed 's/class //;s/(//' | while read -r name; do
+          rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+          echo "- $name ($rel)" >> "$OUTPUT"
+        done
+      done
+      echo -e "  ${GREEN}Found SQLAlchemy models${NC}"
+    else
+      echo "(No SQLAlchemy models found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  sequelize)
+    SEQ_FILES=$(find "$PROJECT_ROOT/$BACKEND_DIR/src" -name "*.model.ts" -o -name "*.model.js" 2>/dev/null)
+    if [ -n "$SEQ_FILES" ]; then
+      echo "$SEQ_FILES" | while read -r file; do
+        name=$(grep -oE 'class\s+\w+' "$file" 2>/dev/null | head -1 | sed 's/class //')
+        rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+        [ -n "$name" ] && echo "- $name ($rel)" >> "$OUTPUT"
+      done
+      echo -e "  ${GREEN}Found Sequelize models${NC}"
+    else
+      echo "(No Sequelize models found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  mongoose)
+    MONGOOSE_FILES=$(grep -rl 'new Schema\|mongoose\.model' --include="*.ts" --include="*.js" "$PROJECT_ROOT/$BACKEND_DIR/src/" 2>/dev/null | head -20)
+    if [ -n "$MONGOOSE_FILES" ]; then
+      echo "$MONGOOSE_FILES" | while read -r file; do
+        name=$(grep -oE "mongoose\.model\(['\"][^'\"]+['\"]" "$file" 2>/dev/null | head -1 | sed "s/mongoose.model(['\"]//;s/['\"]//")
+        [ -z "$name" ] && name=$(basename "$file" | sed 's/\.\(ts\|js\)$//')
+        rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+        echo "- $name ($rel)" >> "$OUTPUT"
+      done
+      echo -e "  ${GREEN}Found Mongoose schemas${NC}"
+    else
+      echo "(No Mongoose schemas found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  drizzle)
+    DRIZZLE_FILES=$(grep -rl 'pgTable\|mysqlTable\|sqliteTable' --include="*.ts" "$PROJECT_ROOT/$BACKEND_DIR/src/" 2>/dev/null | head -20)
+    if [ -n "$DRIZZLE_FILES" ]; then
+      echo "$DRIZZLE_FILES" | while read -r file; do
+        grep -oE '\w+\s*=\s*(pgTable|mysqlTable|sqliteTable)' "$file" 2>/dev/null | sed 's/\s*=.*$//' | while read -r name; do
+          rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+          echo "- $name ($rel)" >> "$OUTPUT"
+        done
+      done
+      echo -e "  ${GREEN}Found Drizzle tables${NC}"
+    else
+      echo "(No Drizzle tables found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  *)
+    # Fallback: look for type/interface definitions or classes
+    TYPES_FOUND=$(grep -rn 'export\s\+\(interface\|type\|class\)\s' --include="*.ts" --include="*.py" --include="*.java" --include="*.rb" --include="*.go" "$PROJECT_ROOT/$BACKEND_DIR/src/" 2>/dev/null | head -20)
+    if [ -n "$TYPES_FOUND" ]; then
+      echo "$TYPES_FOUND" | while read -r line; do
+        name=$(echo "$line" | sed -nE 's/.*export\s+(interface|type|class)\s+([A-Za-z_]+).*/\2/p')
+        file=$(echo "$line" | cut -d: -f1 | sed "s|$PROJECT_ROOT/||")
+        [ -n "$name" ] && echo "- $name ($file)" >> "$OUTPUT"
+      done
+    else
+      echo "(No models/types found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+esac
 
 # ─── 2. Enums ───
 echo -e "${YELLOW}[2/6] Extracting enums...${NC}"
-if [ -f "$SCHEMA" ]; then
+if [ -f "$SCHEMA" ] && [ "$ORM_NAME" = "prisma" ]; then
   echo "## Enums" >> "$OUTPUT"
   awk '
     /^enum / { enum=$2; values=""; next }
@@ -146,102 +259,265 @@ if [ -f "$SCHEMA" ]; then
 fi
 
 # ─── 3. Endpoints ───
-echo -e "${YELLOW}[3/6] Extracting endpoints from controllers...${NC}"
+echo -e "${YELLOW}[3/6] Extracting endpoints...${NC}"
 echo "## Endpoints" >> "$OUTPUT"
-if [ -d "$CONTROLLERS_DIR" ]; then
-  # Find all non-platform controllers
-  find "$CONTROLLERS_DIR" -name "*.controller.ts" -not -path "*/platform/*" | sort | while read -r file; do
-    module=$(basename "$(dirname "$file")")
-    controller_path=$(grep -oP "@Controller\(['\"]([^'\"]*)['\"]" "$file" 2>/dev/null | head -1 | sed "s/@Controller(['\"]//;s/['\"]//")
 
-    if [ -n "$controller_path" ]; then
-      echo "${controller_path}:" >> "$OUTPUT"
-    else
-      echo "${module}:" >> "$OUTPUT"
+case "$BE_FW" in
+  nestjs)
+    if [ -d "$CONTROLLERS_DIR" ]; then
+      find "$CONTROLLERS_DIR" -name "*.controller.ts" -not -path "*/platform/*" | sort | while read -r file; do
+        module=$(basename "$(dirname "$file")")
+        controller_path=$(grep -oP "@Controller\(['\"]([^'\"]*)['\"]" "$file" 2>/dev/null | head -1 | sed "s/@Controller(['\"]//;s/['\"]//")
+        if [ -n "$controller_path" ]; then
+          echo "${controller_path}:" >> "$OUTPUT"
+        else
+          echo "${module}:" >> "$OUTPUT"
+        fi
+        grep -nE "@(Get|Post|Put|Patch|Delete)" "$file" 2>/dev/null | while read -r line; do
+          method=$(echo "$line" | grep -oP "@(Get|Post|Put|Patch|Delete)" | sed 's/@//')
+          path=$(echo "$line" | grep -oP "\(['\"]([^'\"]*)['\"]" | sed "s/[('\"')]//g")
+          line_num=$(echo "$line" | cut -d: -f1)
+          roles_line=$(sed -n "$((line_num-2)),$((line_num+2))p" "$file" | grep -oP "@Roles\(([^)]*)\)" | head -1)
+          roles=$(echo "$roles_line" | sed 's/@Roles(//;s/)//;s/TenantRole\.//g;s/ //g')
+          [ -z "$roles" ] && roles="ANY"
+          method_upper=$(echo "$method" | tr '[:lower:]' '[:upper:]')
+          echo "  ${method_upper} /${path} → ${roles}" >> "$OUTPUT"
+        done
+        echo "" >> "$OUTPUT"
+      done
+      CTRL_COUNT=$(find "$CONTROLLERS_DIR" -name "*.controller.ts" -not -path "*/platform/*" | wc -l | tr -d ' ')
+      echo -e "  ${GREEN}Found $CTRL_COUNT controllers${NC}"
     fi
-
-    # Extract routes
-    grep -nE "@(Get|Post|Put|Patch|Delete)" "$file" 2>/dev/null | while read -r line; do
-      method=$(echo "$line" | grep -oP "@(Get|Post|Put|Patch|Delete)" | sed 's/@//')
-      path=$(echo "$line" | grep -oP "\(['\"]([^'\"]*)['\"]" | sed "s/[('\"')]//g")
-
-      # Get roles from next few lines
-      line_num=$(echo "$line" | cut -d: -f1)
-      roles_line=$(sed -n "$((line_num-2)),$((line_num+2))p" "$file" | grep -oP "@Roles\(([^)]*)\)" | head -1)
-      roles=$(echo "$roles_line" | sed 's/@Roles(//;s/)//;s/TenantRole\.//g;s/ //g')
-
-      if [ -z "$roles" ]; then
-        roles="ANY"
-      fi
-
-      method_upper=$(echo "$method" | tr '[:lower:]' '[:upper:]')
-      echo "  ${method_upper} /${path} → ${roles}" >> "$OUTPUT"
-    done
+    ;;
+  express|fastify|hono)
+    ROUTE_FILES=$(find "$PROJECT_ROOT/$BACKEND_DIR/src" \( -name "*.route.ts" -o -name "*.routes.ts" -o -name "*.route.js" -o -name "*.routes.js" -o -name "router.*" \) 2>/dev/null | sort)
+    if [ -n "$ROUTE_FILES" ]; then
+      echo "$ROUTE_FILES" | while read -r file; do
+        rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+        echo "${rel}:" >> "$OUTPUT"
+        grep -nE "router\.(get|post|put|patch|delete)\(" "$file" 2>/dev/null | while read -r line; do
+          method=$(echo "$line" | sed -E 's/.*router\.(get|post|put|patch|delete).*/\1/' | tr '[:lower:]' '[:upper:]')
+          path=$(echo "$line" | sed -nE "s/.*router\.[a-z]+\([[:space:]]*['\"]([^'\"]*)['\"].*/\1/p")
+          echo "  ${method} ${path}" >> "$OUTPUT"
+        done
+        echo "" >> "$OUTPUT"
+      done
+      CTRL_COUNT=$(echo "$ROUTE_FILES" | wc -l | tr -d ' ')
+      echo -e "  ${GREEN}Found $CTRL_COUNT route files${NC}"
+    else
+      echo "(No route files found)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+    fi
+    ;;
+  django)
+    URL_FILES=$(find "$PROJECT_ROOT/$BACKEND_DIR" -name "urls.py" 2>/dev/null | sort)
+    if [ -n "$URL_FILES" ]; then
+      echo "$URL_FILES" | while read -r file; do
+        rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+        echo "${rel}:" >> "$OUTPUT"
+        grep -nE "path\(|re_path\(" "$file" 2>/dev/null | while read -r line; do
+          path=$(echo "$line" | sed -nE "s/.*path\([[:space:]]*['\"]([^'\"]*)['\"].*/\1/p")
+          [ -n "$path" ] && echo "  ${path}" >> "$OUTPUT"
+        done
+        echo "" >> "$OUTPUT"
+      done
+      echo -e "  ${GREEN}Found $(echo "$URL_FILES" | wc -l | tr -d ' ') url files${NC}"
+    else
+      echo "(No urls.py files found)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+    fi
+    ;;
+  flask)
+    FLASK_FILES=$(grep -rl '@.*\.route(' --include="*.py" "$PROJECT_ROOT/$BACKEND_DIR/" 2>/dev/null | sort)
+    if [ -n "$FLASK_FILES" ]; then
+      echo "$FLASK_FILES" | while read -r file; do
+        rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+        echo "${rel}:" >> "$OUTPUT"
+        grep -nE '@.*\.route\(' "$file" 2>/dev/null | while read -r line; do
+          path=$(echo "$line" | sed -nE "s/.*\.route\([[:space:]]*['\"]([^'\"]*)['\"].*/\1/p")
+          methods=$(echo "$line" | sed -nE "s/.*methods=\[([^]]*)\].*/\1/p" | tr -d "'\"" )
+          [ -z "$methods" ] && methods="GET"
+          [ -n "$path" ] && echo "  ${methods} ${path}" >> "$OUTPUT"
+        done
+        echo "" >> "$OUTPUT"
+      done
+      echo -e "  ${GREEN}Found Flask routes${NC}"
+    else
+      echo "(No Flask routes found)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+    fi
+    ;;
+  rails)
+    ROUTES_FILE="$PROJECT_ROOT/$BACKEND_DIR/config/routes.rb"
+    if [ -f "$ROUTES_FILE" ]; then
+      echo "config/routes.rb:" >> "$OUTPUT"
+      grep -nE '(get|post|put|patch|delete|resources|resource)\s' "$ROUTES_FILE" 2>/dev/null | while read -r line; do
+        echo "  $(echo "$line" | sed 's/^[0-9]*://')" >> "$OUTPUT"
+      done
+      echo "" >> "$OUTPUT"
+      echo -e "  ${GREEN}Found Rails routes${NC}"
+    else
+      echo "(No routes.rb found)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+    fi
+    ;;
+  spring)
+    CTRL_FILES=$(find "$PROJECT_ROOT/$BACKEND_DIR/src" \( -name "*Controller.java" -o -name "*Controller.kt" \) 2>/dev/null | sort)
+    if [ -n "$CTRL_FILES" ]; then
+      echo "$CTRL_FILES" | while read -r file; do
+        name=$(basename "$file" | sed 's/\.\(java\|kt\)$//')
+        echo "${name}:" >> "$OUTPUT"
+        grep -nE "@(Get|Post|Put|Patch|Delete|Request)Mapping" "$file" 2>/dev/null | while read -r line; do
+          method=$(echo "$line" | sed -E 's/.*@(Get|Post|Put|Patch|Delete|Request)Mapping.*/\1/' | tr '[:lower:]' '[:upper:]')
+          path=$(echo "$line" | sed -nE 's/.*Mapping\([[:space:]]*"([^"]*)".*/\1/p')
+          echo "  ${method} ${path}" >> "$OUTPUT"
+        done
+        echo "" >> "$OUTPUT"
+      done
+      CTRL_COUNT=$(echo "$CTRL_FILES" | wc -l | tr -d ' ')
+      echo -e "  ${GREEN}Found $CTRL_COUNT controllers${NC}"
+    else
+      echo "(No Spring controllers found)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+    fi
+    ;;
+  laravel)
+    API_ROUTES="$PROJECT_ROOT/$BACKEND_DIR/routes/api.php"
+    if [ -f "$API_ROUTES" ]; then
+      echo "routes/api.php:" >> "$OUTPUT"
+      grep -nE "Route::(get|post|put|patch|delete)" "$API_ROUTES" 2>/dev/null | while read -r line; do
+        method=$(echo "$line" | sed -E 's/.*Route::(get|post|put|patch|delete).*/\1/' | tr '[:lower:]' '[:upper:]')
+        path=$(echo "$line" | sed -nE "s/.*Route::[a-z]+\([[:space:]]*['\"]([^'\"]*)['\"].*/\1/p")
+        echo "  ${method} ${path}" >> "$OUTPUT"
+      done
+      echo "" >> "$OUTPUT"
+      echo -e "  ${GREEN}Found Laravel routes${NC}"
+    else
+      echo "(No Laravel routes found)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
+    fi
+    ;;
+  *)
+    # Fallback: look for route files, handlers, or entry points
+    ROUTE_FILES=$(find "$PROJECT_ROOT/$BACKEND_DIR" \( -name "*.route.*" -o -name "*.routes.*" -o -name "router.*" -o -name "handler.*" -o -name "urls.py" \) 2>/dev/null | head -20)
+    if [ -n "$ROUTE_FILES" ]; then
+      echo "$ROUTE_FILES" | while read -r file; do
+        echo "- $(echo "$file" | sed "s|$PROJECT_ROOT/||")" >> "$OUTPUT"
+      done
+    else
+      echo "(No controllers or route files found)" >> "$OUTPUT"
+    fi
     echo "" >> "$OUTPUT"
-  done
-  CTRL_COUNT=$(find "$CONTROLLERS_DIR" -name "*.controller.ts" -not -path "*/platform/*" | wc -l | tr -d ' ')
-  echo -e "  ${GREEN}Found $CTRL_COUNT controllers${NC}"
-else
-  # Fallback: look for route files, handlers, or entry points
-  ROUTE_FILES=$(find "$PROJECT_ROOT/$BACKEND_PATH/src" -name "*.route.*" -o -name "*.routes.*" -o -name "router.*" -o -name "handler.*" 2>/dev/null | head -20)
-  if [ -n "$ROUTE_FILES" ]; then
-    echo "$ROUTE_FILES" | while read -r file; do
-      echo "- $(echo "$file" | sed "s|$PROJECT_ROOT/||")" >> "$OUTPUT"
-    done
-  else
-    echo "(No controllers or route files found)" >> "$OUTPUT"
-  fi
-  echo "" >> "$OUTPUT"
-fi
+    ;;
+esac
 
 # ─── 4. Pages ───
 echo -e "${YELLOW}[4/6] Extracting pages...${NC}"
 echo "## Pages" >> "$OUTPUT"
-if [ -d "$PAGES_DIR" ]; then
-  find "$PAGES_DIR" -name "page.tsx" | sort | while read -r file; do
-    # Extract route from file path
-    route=$(echo "$file" | sed "s|$PAGES_DIR||;s|/page.tsx||")
-    if [ -z "$route" ]; then route="/"; fi
 
-    # Extract API calls
-    api_calls=$(grep -oP "(api\w+|apiClient)\.\w+" "$file" 2>/dev/null | sort -u | tr '\n' ',' | sed 's/,$//')
-
-    if [ -n "$api_calls" ]; then
-      echo "${route} → ${api_calls}" >> "$OUTPUT"
+case "$FE_FW" in
+  nextjs)
+    if [ -d "$PAGES_DIR" ]; then
+      find "$PAGES_DIR" -name "page.tsx" -o -name "page.jsx" | sort | while read -r file; do
+        route=$(echo "$file" | sed "s|$PAGES_DIR||;s|/page\.\(tsx\|jsx\)||")
+        [ -z "$route" ] && route="/"
+        api_calls=$(grep -oP "(api\w+|apiClient)\.\w+" "$file" 2>/dev/null | sort -u | tr '\n' ',' | sed 's/,$//')
+        if [ -n "$api_calls" ]; then
+          echo "${route} → ${api_calls}" >> "$OUTPUT"
+        else
+          echo "${route}" >> "$OUTPUT"
+        fi
+      done
+      echo "" >> "$OUTPUT"
+      PAGE_COUNT=$(find "$PAGES_DIR" \( -name "page.tsx" -o -name "page.jsx" \) | wc -l | tr -d ' ')
+      echo -e "  ${GREEN}Found $PAGE_COUNT pages${NC}"
     else
-      echo "${route}" >> "$OUTPUT"
+      echo "(No Next.js pages directory found)" >> "$OUTPUT"
+      echo "" >> "$OUTPUT"
     fi
-  done
-  echo "" >> "$OUTPUT"
-  PAGE_COUNT=$(find "$PAGES_DIR" -name "page.tsx" | wc -l | tr -d ' ')
-  echo -e "  ${GREEN}Found $PAGE_COUNT pages${NC}"
-else
-  # Fallback: look for React components, HTML files, or route-based pages
-  FRONTEND_SRC="$PROJECT_ROOT/$FRONTEND_PATH/src"
-  if [ -d "$FRONTEND_SRC" ]; then
-    COMP_FILES=$(find "$FRONTEND_SRC" \( -name "*.tsx" -o -name "*.jsx" \) -not -path "*/node_modules/*" 2>/dev/null | head -20)
-    if [ -n "$COMP_FILES" ]; then
-      echo "$COMP_FILES" | while read -r file; do
-        echo "- $(echo "$file" | sed "s|$PROJECT_ROOT/||")" >> "$OUTPUT"
+    ;;
+  react)
+    # Look for React Router routes
+    ROUTER_FILES=$(grep -rl '<Route\|createBrowserRouter\|createRoutesFromElements' --include="*.tsx" --include="*.jsx" --include="*.ts" "$PROJECT_ROOT/$FRONTEND_DIR/src/" 2>/dev/null | head -5)
+    if [ -n "$ROUTER_FILES" ]; then
+      echo "$ROUTER_FILES" | while read -r file; do
+        rel=$(echo "$file" | sed "s|$PROJECT_ROOT/||")
+        echo "Routes in $rel:" >> "$OUTPUT"
+        grep -oE "path=['\"]([^'\"]*)['\"]" "$file" 2>/dev/null | sed "s/path=['\"]//;s/['\"]$//" | while read -r path; do
+          echo "  ${path}" >> "$OUTPUT"
+        done
       done
     else
-      echo "(No page files found)" >> "$OUTPUT"
+      echo "(No React Router routes found)" >> "$OUTPUT"
     fi
-  else
-    echo "(Frontend src directory not found)" >> "$OUTPUT"
-  fi
-  echo "" >> "$OUTPUT"
-fi
+    echo "" >> "$OUTPUT"
+    ;;
+  vue)
+    ROUTER_FILE=$(find "$PROJECT_ROOT/$FRONTEND_DIR/src" -name "router.ts" -o -name "router.js" -o -name "index.ts" -path "*/router/*" 2>/dev/null | head -1)
+    if [ -n "$ROUTER_FILE" ]; then
+      echo "Vue Router:" >> "$OUTPUT"
+      grep -oE "path:\s*['\"]([^'\"]*)['\"]" "$ROUTER_FILE" 2>/dev/null | sed "s/path:\s*['\"]//;s/['\"]$//" | while read -r path; do
+        echo "  ${path}" >> "$OUTPUT"
+      done
+    else
+      echo "(No Vue Router config found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  svelte)
+    SVELTE_PAGES=$(find "$PROJECT_ROOT/$FRONTEND_DIR/src/routes" -name "+page.svelte" 2>/dev/null | sort)
+    if [ -n "$SVELTE_PAGES" ]; then
+      echo "$SVELTE_PAGES" | while read -r file; do
+        route=$(echo "$file" | sed "s|$PROJECT_ROOT/$FRONTEND_DIR/src/routes||;s|/+page\.svelte||")
+        [ -z "$route" ] && route="/"
+        echo "${route}" >> "$OUTPUT"
+      done
+    else
+      echo "(No SvelteKit pages found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  angular)
+    ROUTING_FILES=$(find "$PROJECT_ROOT/$FRONTEND_DIR/src" -name "*-routing.module.ts" -o -name "*.routes.ts" 2>/dev/null | head -5)
+    if [ -n "$ROUTING_FILES" ]; then
+      echo "Angular Routes:" >> "$OUTPUT"
+      echo "$ROUTING_FILES" | while read -r file; do
+        grep -oE "path:\s*['\"]([^'\"]*)['\"]" "$file" 2>/dev/null | sed "s/path:\s*['\"]//;s/['\"]$//" | while read -r path; do
+          echo "  ${path}" >> "$OUTPUT"
+        done
+      done
+    else
+      echo "(No Angular routing modules found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+  *)
+    # Fallback
+    FRONTEND_SRC="$PROJECT_ROOT/$FRONTEND_DIR/src"
+    if [ -d "$FRONTEND_SRC" ]; then
+      COMP_FILES=$(find "$FRONTEND_SRC" \( -name "*.tsx" -o -name "*.jsx" -o -name "*.vue" -o -name "*.svelte" \) -not -path "*/node_modules/*" 2>/dev/null | head -20)
+      if [ -n "$COMP_FILES" ]; then
+        echo "$COMP_FILES" | while read -r file; do
+          echo "- $(echo "$file" | sed "s|$PROJECT_ROOT/||")" >> "$OUTPUT"
+        done
+      else
+        echo "(No page files found)" >> "$OUTPUT"
+      fi
+    else
+      echo "(Frontend src directory not found)" >> "$OUTPUT"
+    fi
+    echo "" >> "$OUTPUT"
+    ;;
+esac
 
 # ─── 5. Components & API Client Files ───
 echo -e "${YELLOW}[5/6] Extracting components and API client files...${NC}"
 
 echo "## Reusable Components" >> "$OUTPUT"
 if [ -d "$COMPONENTS_DIR" ]; then
-  # List component directories and key files
   for dir in "$COMPONENTS_DIR"/*/; do
     category=$(basename "$dir")
-    files=$(ls "$dir"*.tsx 2>/dev/null | xargs -I{} basename {} .tsx | tr '\n' ',' | sed 's/,$//')
+    files=$(ls "$dir"*.tsx "$dir"*.vue "$dir"*.svelte "$dir"*.jsx 2>/dev/null | xargs -I{} basename {} | sed 's/\.\(tsx\|jsx\|vue\|svelte\)$//' | tr '\n' ',' | sed 's/,$//')
     if [ -n "$files" ]; then
       echo "${category}: ${files}" >> "$OUTPUT"
     fi
@@ -251,26 +527,39 @@ fi
 
 echo "## API Client Files" >> "$OUTPUT"
 if [ -d "$API_CLIENT_DIR" ]; then
-  files=$(ls "$API_CLIENT_DIR"/*.ts 2>/dev/null | xargs -I{} basename {} .ts | tr '\n' ',' | sed 's/,$//')
+  files=$(ls "$API_CLIENT_DIR"/*.ts "$API_CLIENT_DIR"/*.js 2>/dev/null | xargs -I{} basename {} | sed 's/\.\(ts\|js\)$//' | tr '\n' ',' | sed 's/,$//')
   echo "Files: ${files}" >> "$OUTPUT"
-  echo "Path: ${API_CLIENT_REL}/[name].ts" >> "$OUTPUT"
-  echo "Import: apiClient from @/lib/api-client" >> "$OUTPUT"
+  echo "Path: ${API_CLIENT_REL}/[name]" >> "$OUTPUT"
 fi
 
 # ─── 6. Files by Directory ───
 echo -e "${YELLOW}[6/6] Generating directory overview...${NC}"
 echo "" >> "$OUTPUT"
 echo "## Files by Directory" >> "$OUTPUT"
-for DIR in "$PROJECT_ROOT/$BACKEND_PATH/src" "$PROJECT_ROOT/$FRONTEND_PATH/src"; do
+
+# Build file extension filter
+FILE_EXT_FILTER=""
+case "$LANG" in
+  typescript)       FILE_EXT_FILTER='-name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx"' ;;
+  javascript)       FILE_EXT_FILTER='-name "*.js" -o -name "*.jsx"' ;;
+  python)           FILE_EXT_FILTER='-name "*.py"' ;;
+  ruby)             FILE_EXT_FILTER='-name "*.rb"' ;;
+  go)               FILE_EXT_FILTER='-name "*.go"' ;;
+  java)             FILE_EXT_FILTER='-name "*.java" -o -name "*.kt"' ;;
+  php)              FILE_EXT_FILTER='-name "*.php"' ;;
+  rust)             FILE_EXT_FILTER='-name "*.rs"' ;;
+  *)                FILE_EXT_FILTER='-name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" -o -name "*.rb" -o -name "*.go" -o -name "*.java"' ;;
+esac
+
+for DIR in "$PROJECT_ROOT/$BACKEND_DIR/src" "$PROJECT_ROOT/$BACKEND_DIR/app" "$PROJECT_ROOT/$FRONTEND_DIR/src"; do
   if [ -d "$DIR" ]; then
     REL_DIR=$(echo "$DIR" | sed "s|$PROJECT_ROOT/||")
     echo "" >> "$OUTPUT"
     echo "### $REL_DIR" >> "$OUTPUT"
-    # List top-level subdirectories with file counts
     for SUBDIR in "$DIR"/*/; do
       [ -d "$SUBDIR" ] || continue
       SUBNAME=$(basename "$SUBDIR")
-      FILE_COUNT=$(find "$SUBDIR" \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) -not -path "*/node_modules/*" 2>/dev/null | wc -l | tr -d ' ')
+      FILE_COUNT=$(eval "find \"$SUBDIR\" \( $FILE_EXT_FILTER \) -not -path '*/node_modules/*' -not -path '*/__pycache__/*' -not -path '*/vendor/*' -not -path '*/target/*'" 2>/dev/null | wc -l | tr -d ' ')
       [ "$FILE_COUNT" -gt 0 ] && echo "- ${SUBNAME}/ ($FILE_COUNT files)" >> "$OUTPUT"
     done
   fi
