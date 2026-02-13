@@ -41,7 +41,10 @@ cmd_audit() {
   echo "${BOLD}Running Full Audit...${NC}"
   echo ""
   if [ -f "$SCRIPTS_DIR/full-audit.sh" ]; then
-    bash "$SCRIPTS_DIR/full-audit.sh"
+    source "$_LIB"
+    local BE=$(read_manifest "paths.backend" "apps/api")
+    local FE=$(read_manifest "paths.frontend" "apps/portal")
+    bash "$SCRIPTS_DIR/full-audit.sh" "$BE" "$FE"
   else
     echo "${RED}Error: full-audit.sh not found at $SCRIPTS_DIR${NC}"
     exit 1
@@ -89,7 +92,10 @@ cmd_predeploy() {
   echo "${BOLD}Running Pre-Deploy Checks...${NC}"
   echo ""
   if [ -f "$SCRIPTS_DIR/pre-deploy.sh" ]; then
-    bash "$SCRIPTS_DIR/pre-deploy.sh"
+    source "$_LIB"
+    local BE=$(read_manifest "paths.backend" "apps/api")
+    local FE=$(read_manifest "paths.frontend" "apps/portal")
+    bash "$SCRIPTS_DIR/pre-deploy.sh" "$BE" "$FE"
   else
     echo "${RED}Error: pre-deploy.sh not found at $SCRIPTS_DIR${NC}"
     exit 1
@@ -103,11 +109,36 @@ cmd_verify() {
     bash "$SCRIPTS_DIR/verify-setup.sh"
   else
     # Inline basic verify
+    source "$_LIB"
+    local DB=$(read_manifest "stack.backend.database" "")
+
     echo "Checking environment..."
     echo ""
     node -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Node.js $(node -v)" || echo "  ${RED}✗${NC} Node.js not installed"
     npm -v >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} npm $(npm -v)" || echo "  ${RED}✗${NC} npm not installed"
-    psql --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} PostgreSQL installed" || echo "  ${RED}✗${NC} PostgreSQL not installed"
+
+    # Database check based on manifest
+    case "$DB" in
+      postgresql|postgres)
+        psql --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} PostgreSQL installed" || echo "  ${RED}✗${NC} PostgreSQL not installed"
+        ;;
+      mysql)
+        mysql --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} MySQL installed" || echo "  ${RED}✗${NC} MySQL not installed"
+        ;;
+      mongodb)
+        mongosh --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} MongoDB installed" || echo "  ${RED}✗${NC} MongoDB not installed"
+        ;;
+      sqlite)
+        sqlite3 --version >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} SQLite installed" || echo "  ${RED}✗${NC} SQLite not installed"
+        ;;
+      "")
+        echo "  ${YELLOW}—${NC} No database configured in manifest"
+        ;;
+      *)
+        echo "  ${YELLOW}—${NC} Database: $DB (manual verification needed)"
+        ;;
+    esac
+
     [ -d "$ROOT/node_modules" ] && echo "  ${GREEN}✓${NC} Dependencies installed" || echo "  ${RED}✗${NC} Run: npm install"
     [ -f "$ROOT/.env" ] && echo "  ${GREEN}✓${NC} Root .env exists" || echo "  ${YELLOW}—${NC} No root .env"
     git -C "$ROOT" status >/dev/null 2>&1 && echo "  ${GREEN}✓${NC} Git repository" || echo "  ${RED}✗${NC} Not a git repo"

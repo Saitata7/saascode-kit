@@ -1,27 +1,129 @@
 #!/usr/bin/env npx tsx
 /**
  * SaasCode Kit — AST-Based Code Review
- * Uses ts-morph to parse controllers and services for:
- *   - Missing guard chains
- *   - Missing @Roles or @Public on endpoints
- *   - Missing tenant scoping in services
- *   - Unused parameter decorators
- *   - Empty catch blocks
- *   - Console.log in production code
+ * Uses ts-morph to parse TypeScript files for:
+ *   - Missing guard chains (NestJS)
+ *   - Missing @Roles or @Public on endpoints (NestJS)
+ *   - Missing tenant scoping in services (NestJS)
+ *   - Empty catch blocks (universal)
+ *   - Console.log in production code (universal)
+ *   - Raw SQL injection (universal)
+ *   - Hardcoded secrets (universal)
+ *   - innerHTML write detection (universal)
+ *   - Hardcoded AI model names (universal)
+ *   - Switch without default (universal)
  *
  * Usage: npx tsx saascode-kit/scripts/ast-review.ts [--changed-only]
  *   --changed-only: Only scan files changed in git (for PR reviews)
  */
 
-import { Project, SyntaxKind, Node, ClassDeclaration, MethodDeclaration, SourceFile } from 'ts-morph';
+import { Project, SyntaxKind, Node, ClassDeclaration, MethodDeclaration, SourceFile, BinaryExpression } from 'ts-morph';
 import * as path from 'path';
+import * as fs from 'fs';
 import { execSync } from 'child_process';
 
 // ─── Config ───
 
-const PROJECT_ROOT = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
-const API_SRC = path.join(PROJECT_ROOT, 'apps/api/src');
-const TSCONFIG = path.join(PROJECT_ROOT, 'apps/api/tsconfig.json');
+// Bug 8 fix: fallback to cwd if not in a git repo
+let PROJECT_ROOT: string;
+try {
+  PROJECT_ROOT = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
+} catch {
+  PROJECT_ROOT = process.cwd();
+}
+
+// Bug 13 fix: Read manifest to determine paths and project type
+interface ManifestConfig {
+  backendPath: string;
+  frontendPath: string;
+  backendFramework: string;
+  isNestJS: boolean;
+  tsconfigPath: string;
+}
+
+function readManifestValue(key: string, defaultValue: string): string {
+  const manifestPaths = [
+    path.join(PROJECT_ROOT, 'saascode-kit/manifest.yaml'),
+    path.join(PROJECT_ROOT, '.saascode/manifest.yaml'),
+    path.join(PROJECT_ROOT, 'manifest.yaml'),
+    path.join(PROJECT_ROOT, 'saascode-kit.yaml'),
+  ];
+
+  let manifestPath = '';
+  for (const p of manifestPaths) {
+    if (fs.existsSync(p)) {
+      manifestPath = p;
+      break;
+    }
+  }
+  if (!manifestPath) return defaultValue;
+
+  try {
+    const content = fs.readFileSync(manifestPath, 'utf-8');
+    const [section, field] = key.split('.');
+    let inSection = false;
+
+    for (const line of content.split('\n')) {
+      if (/^[a-z]/.test(line)) {
+        inSection = line.startsWith(section + ':');
+        // Top-level key with value
+        if (inSection && section === field) {
+          const val = line.replace(/^[^:]+:\s*/, '').replace(/\s+#\s.*$/, '').replace(/^"|"$/g, '').trim();
+          if (val) return val;
+        }
+        continue;
+      }
+      if (inSection && /^\s{2}[a-z]/.test(line)) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith(field + ':')) {
+          const val = trimmed.replace(/^[^:]+:\s*/, '').replace(/\s+#\s.*$/, '').replace(/^"|"$/g, '').trim();
+          if (val) return val;
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  return defaultValue;
+}
+
+function loadConfig(): ManifestConfig {
+  const backendPath = readManifestValue('paths.backend', 'apps/api');
+  const frontendPath = readManifestValue('paths.frontend', 'apps/portal');
+  const backendFramework = readManifestValue('stack.backend_framework', '');
+
+  // Also try nested key format
+  const fw = backendFramework || readManifestValue('backend.framework', '');
+
+  // Detect NestJS by checking for NestJS imports if manifest doesn't say
+  let isNestJS = fw.toLowerCase().includes('nest');
+  if (!isNestJS) {
+    // Auto-detect: check if any .ts file imports from @nestjs
+    const srcDir = path.join(PROJECT_ROOT, backendPath, 'src');
+    if (fs.existsSync(srcDir)) {
+      try {
+        const result = execSync(`grep -rl "@nestjs/" "${srcDir}" --include="*.ts" 2>/dev/null | head -1`, { encoding: 'utf-8' }).trim();
+        isNestJS = result.length > 0;
+      } catch { /* not NestJS */ }
+    }
+  }
+
+  // Find tsconfig.json — search backend path first, then root
+  let tsconfigPath = '';
+  const candidates = [
+    path.join(PROJECT_ROOT, backendPath, 'tsconfig.json'),
+    path.join(PROJECT_ROOT, 'tsconfig.json'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      tsconfigPath = c;
+      break;
+    }
+  }
+
+  return { backendPath, frontendPath, backendFramework: fw, isNestJS, tsconfigPath };
+}
+
+const CONFIG = loadConfig();
 
 const COLORS = {
   red: '\x1b[0;31m',
@@ -42,17 +144,10 @@ interface Finding {
   fix: string;
 }
 
-// ─── Decorator Helpers ───
+// ─── Decorator Helpers (NestJS-specific) ───
 
 function getDecoratorNames(node: ClassDeclaration | MethodDeclaration): string[] {
   return node.getDecorators().map(d => d.getName());
-}
-
-function getDecoratorArgs(node: ClassDeclaration | MethodDeclaration, name: string): string[] {
-  const decorator = node.getDecorators().find(d => d.getName() === name);
-  if (!decorator) return [];
-  const args = decorator.getArguments();
-  return args.map(a => a.getText());
 }
 
 function getUseGuardsArgs(node: ClassDeclaration): string[] {
@@ -89,34 +184,24 @@ function relativePath(filePath: string): string {
   return filePath.replace(PROJECT_ROOT + '/', '');
 }
 
-// ─── Checks ───
+// ─── NestJS-Specific Checks ───
 
 function isControllerClass(cls: ClassDeclaration): boolean {
   return cls.getDecorators().some(d => d.getName() === 'Controller');
 }
 
 function checkGuardChain(cls: ClassDeclaration, findings: Finding[], filePath: string): void {
-  // Only check actual @Controller classes, skip DTOs/other classes in same file
   if (!isControllerClass(cls)) return;
 
   const guards = getUseGuardsArgs(cls);
   const className = cls.getName() || 'Unknown';
 
-  // Skip platform controllers — they use PlatformGuard
   if (filePath.includes('/platform/')) return;
-
-  // Skip webhook controllers — they should be @Public
   if (className.toLowerCase().includes('webhook')) return;
-
-  // Skip control-plane controllers — they use ApiKeyAuthGuard (legitimate)
   if (filePath.includes('/control-plane/')) return;
-
-  // Skip OAuth controllers — they have special auth flows
   if (className.toLowerCase().includes('oauth')) return;
 
-  // Must have @UseGuards
   if (guards.length === 0) {
-    // Check if class has @Public() — some controllers are fully public
     if (!hasDecorator(cls, 'Public')) {
       findings.push({
         file: relativePath(filePath),
@@ -124,25 +209,25 @@ function checkGuardChain(cls: ClassDeclaration, findings: Finding[], filePath: s
         severity: 'CRITICAL',
         confidence: 95,
         issue: `${className} has no @UseGuards decorator`,
-        fix: 'Add @UseGuards(ClerkAuthGuard, TenantGuard, RolesGuard)',
+        fix: 'Add @UseGuards(AuthGuard, TenantGuard, RolesGuard)',
       });
     }
     return;
   }
 
-  // ClerkAuthGuard must be first (for non-control-plane)
-  if (guards[0] !== 'ClerkAuthGuard') {
+  // Check first guard is an auth guard
+  const firstGuard = guards[0];
+  if (!firstGuard.includes('Auth') && !firstGuard.includes('auth')) {
     findings.push({
       file: relativePath(filePath),
       line: cls.getStartLineNumber(),
       severity: 'CRITICAL',
       confidence: 95,
-      issue: `${className} guard chain doesn't start with ClerkAuthGuard (found: ${guards[0]})`,
-      fix: 'ClerkAuthGuard must be the first guard in @UseGuards()',
+      issue: `${className} guard chain doesn't start with an auth guard (found: ${firstGuard})`,
+      fix: 'Auth guard must be the first guard in @UseGuards()',
     });
   }
 
-  // If TenantGuard used, RolesGuard should follow
   const hasTenantGuard = guards.includes('TenantGuard');
   const hasRolesGuard = guards.includes('RolesGuard');
   if (hasTenantGuard && !hasRolesGuard) {
@@ -152,7 +237,7 @@ function checkGuardChain(cls: ClassDeclaration, findings: Finding[], filePath: s
       severity: 'WARNING',
       confidence: 80,
       issue: `${className} has TenantGuard but no RolesGuard`,
-      fix: 'Add RolesGuard after TenantGuard: @UseGuards(ClerkAuthGuard, TenantGuard, RolesGuard)',
+      fix: 'Add RolesGuard after TenantGuard: @UseGuards(AuthGuard, TenantGuard, RolesGuard)',
     });
   }
 }
@@ -166,12 +251,11 @@ function checkMethodDecorators(
   if (!isControllerClass(cls)) return;
 
   const httpMethod = getHttpMethod(method);
-  if (!httpMethod) return; // Not an endpoint
+  if (!httpMethod) return;
 
   const methodName = method.getName();
   const classGuards = getUseGuardsArgs(cls);
 
-  // Check @Roles or @Public
   const hasRoles = hasDecorator(method, 'Roles');
   const hasPublic = hasDecorator(method, 'Public');
   const classHasPublic = hasDecorator(cls, 'Public');
@@ -183,7 +267,7 @@ function checkMethodDecorators(
       severity: 'CRITICAL',
       confidence: 92,
       issue: `@${httpMethod}() ${methodName}() has no @Roles() or @Public() — RolesGuard will deny all requests`,
-      fix: `Add @Roles(TenantRole.OWNER, TenantRole.ADMIN) or @Public()`,
+      fix: `Add @Roles(...) or @Public()`,
     });
   }
 }
@@ -202,14 +286,12 @@ function checkParameterUsage(
   const paramDecorators = getParameterDecorators(method);
   const classGuards = getUseGuardsArgs(cls);
 
-  // If class has TenantGuard, tenant-scoped methods should use @CurrentTenant()
   if (classGuards.includes('TenantGuard')) {
     const hasTenantParam =
       paramDecorators.includes('CurrentTenant') ||
       paramDecorators.includes('CurrentOrgId') ||
       paramDecorators.includes('CurrentMembership');
 
-    // Write operations (POST/PATCH/PUT/DELETE) without tenant param
     if (['Post', 'Patch', 'Put', 'Delete'].includes(httpMethod) && !hasTenantParam) {
       findings.push({
         file: relativePath(filePath),
@@ -226,8 +308,6 @@ function checkParameterUsage(
 function checkServiceTenantScoping(sourceFile: SourceFile, findings: Finding[]): void {
   const filePath = sourceFile.getFilePath();
   if (!filePath.endsWith('.service.ts')) return;
-
-  // Skip platform services
   if (filePath.includes('/platform/')) return;
 
   const classes = sourceFile.getClasses();
@@ -239,7 +319,6 @@ function checkServiceTenantScoping(sourceFile: SourceFile, findings: Finding[]):
       const methodName = method.getName();
       const body = method.getBody()?.getText() || '';
 
-      // Check for prisma queries without tenantId
       const hasPrismaCall =
         body.includes('.findMany(') ||
         body.includes('.findFirst(') ||
@@ -253,10 +332,9 @@ function checkServiceTenantScoping(sourceFile: SourceFile, findings: Finding[]):
           body.includes('tenantId') ||
           body.includes('tenant.id') ||
           body.includes('clerkOrgId') ||
-          methodName.startsWith('_'); // Private helper methods might be called with tenant context
+          methodName.startsWith('_');
 
         if (!hasTenantScope) {
-          // Check method parameters for tenant context
           const params = method.getParameters().map(p => p.getName());
           const hasTenantParam = params.some(
             p =>
@@ -282,6 +360,9 @@ function checkServiceTenantScoping(sourceFile: SourceFile, findings: Finding[]):
   }
 }
 
+// ─── Universal Checks ───
+
+// Bug 17 fix: check for comments in empty catch blocks
 function checkEmptyCatchBlocks(sourceFile: SourceFile, findings: Finding[]): void {
   const filePath = sourceFile.getFilePath();
 
@@ -290,13 +371,18 @@ function checkEmptyCatchBlocks(sourceFile: SourceFile, findings: Finding[]): voi
     const statements = block.getStatements();
 
     if (statements.length === 0) {
+      // Check if block contains comments (not flagged by statements)
+      const blockText = block.getFullText();
+      const hasComment = /\/\/|\/\*/.test(blockText);
+      if (hasComment) return; // Has comments — intentionally empty, don't flag
+
       findings.push({
         file: relativePath(filePath),
         line: catchClause.getStartLineNumber(),
         severity: 'WARNING',
         confidence: 85,
         issue: 'Empty catch block swallows errors silently',
-        fix: 'Add error logging or re-throw the error',
+        fix: 'Add error logging, re-throw, or add a comment explaining why',
       });
     }
   });
@@ -305,7 +391,6 @@ function checkEmptyCatchBlocks(sourceFile: SourceFile, findings: Finding[]): voi
 function checkConsoleLog(sourceFile: SourceFile, findings: Finding[]): void {
   const filePath = sourceFile.getFilePath();
 
-  // Skip test files
   if (filePath.includes('.spec.') || filePath.includes('.test.')) return;
 
   sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(call => {
@@ -317,7 +402,7 @@ function checkConsoleLog(sourceFile: SourceFile, findings: Finding[]): void {
         severity: 'WARNING',
         confidence: 80,
         issue: `${text}() in production code`,
-        fix: 'Use Logger from @nestjs/common instead, or remove',
+        fix: 'Use a proper logger instead, or remove',
       });
     }
   });
@@ -329,7 +414,6 @@ function checkRawSql(sourceFile: SourceFile, findings: Finding[]): void {
   sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(call => {
     const text = call.getExpression().getText();
     if (text.includes('$queryRaw') || text.includes('$executeRaw')) {
-      // Check if using template literal (safe) or string concatenation (unsafe)
       const args = call.getArguments();
       if (args.length > 0) {
         const argText = args[0].getText();
@@ -351,7 +435,6 @@ function checkRawSql(sourceFile: SourceFile, findings: Finding[]): void {
 function checkHardcodedSecrets(sourceFile: SourceFile, findings: Finding[]): void {
   const filePath = sourceFile.getFilePath();
 
-  // Skip .env files, test files
   if (filePath.includes('.spec.') || filePath.includes('.test.') || filePath.includes('.env'))
     return;
 
@@ -368,7 +451,6 @@ function checkHardcodedSecrets(sourceFile: SourceFile, findings: Finding[]): voi
     const line = lines[i];
     for (const pattern of secretPatterns) {
       if (pattern.test(line)) {
-        // Skip lines that are reading from env/config
         if (
           line.includes('process.env') ||
           line.includes('configService') ||
@@ -384,11 +466,109 @@ function checkHardcodedSecrets(sourceFile: SourceFile, findings: Finding[]): voi
           severity: 'CRITICAL',
           confidence: 90,
           issue: 'Potential hardcoded secret or API key',
-          fix: 'Move to environment variable and use ConfigService',
+          fix: 'Move to environment variable and use config service',
         });
       }
     }
   }
+}
+
+// Bug 18 fix: Only flag innerHTML WRITES, not reads
+function checkInnerHtmlWrites(sourceFile: SourceFile, findings: Finding[]): void {
+  const filePath = sourceFile.getFilePath();
+  if (filePath.includes('.spec.') || filePath.includes('.test.')) return;
+
+  sourceFile.getDescendantsOfKind(SyntaxKind.BinaryExpression).forEach(expr => {
+    const left = expr.getLeft().getText();
+    const operator = expr.getOperatorToken().getText();
+
+    // Only flag assignments: .innerHTML = ... or .innerHTML += ...
+    if ((operator === '=' || operator === '+=') && left.includes('.innerHTML')) {
+      findings.push({
+        file: relativePath(filePath),
+        line: expr.getStartLineNumber(),
+        severity: 'CRITICAL',
+        confidence: 90,
+        issue: 'Direct innerHTML assignment — XSS risk',
+        fix: 'Use textContent, DOM APIs, or a sanitizer library instead',
+      });
+    }
+  });
+}
+
+// Bug 16 fix: Skip constants/config files for hardcoded model name check
+function isConstantsFile(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return (
+    lower.includes('/constants/') ||
+    lower.includes('/config/') ||
+    lower.includes('/settings/') ||
+    lower.includes('constant') ||
+    lower.includes('config') ||
+    lower.includes('.config.') ||
+    lower.includes('model') // e.g., models.ts defining model name mappings
+  );
+}
+
+function checkHardcodedModelNames(sourceFile: SourceFile, findings: Finding[]): void {
+  const filePath = sourceFile.getFilePath();
+  if (filePath.includes('.spec.') || filePath.includes('.test.')) return;
+  if (isConstantsFile(filePath)) return;
+
+  const modelPatterns = [
+    /['"]gpt-4[^'"]*['"]/,
+    /['"]gpt-3[^'"]*['"]/,
+    /['"]claude-3[^'"]*['"]/,
+    /['"]claude-2[^'"]*['"]/,
+    /['"]llama[^'"]*['"]/i,
+    /['"]gemini[^'"]*['"]/i,
+  ];
+
+  const text = sourceFile.getFullText();
+  const lines = text.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Skip comments
+    if (line.trim().startsWith('//') || line.trim().startsWith('*')) continue;
+
+    for (const pattern of modelPatterns) {
+      if (pattern.test(line)) {
+        // Skip if it's an export const (likely constants definition)
+        if (/export\s+const\s/.test(line)) continue;
+
+        findings.push({
+          file: relativePath(filePath),
+          line: i + 1,
+          severity: 'WARNING',
+          confidence: 70,
+          issue: 'Hardcoded AI model name — makes upgrades painful',
+          fix: 'Use a config/constants file for model names',
+        });
+        break; // One finding per line
+      }
+    }
+  }
+}
+
+function checkSwitchWithoutDefault(sourceFile: SourceFile, findings: Finding[]): void {
+  const filePath = sourceFile.getFilePath();
+  if (filePath.includes('.spec.') || filePath.includes('.test.')) return;
+
+  sourceFile.getDescendantsOfKind(SyntaxKind.SwitchStatement).forEach(switchStmt => {
+    const clauses = switchStmt.getCaseBlock().getClauses();
+    const hasDefault = clauses.some(c => c.getKind() === SyntaxKind.DefaultClause);
+    if (!hasDefault) {
+      findings.push({
+        file: relativePath(filePath),
+        line: switchStmt.getStartLineNumber(),
+        severity: 'WARNING',
+        confidence: 70,
+        issue: 'switch statement without default case — may miss enum values',
+        fix: 'Add a default case or exhaustive type check',
+      });
+    }
+  });
 }
 
 // ─── Main ───
@@ -398,99 +578,111 @@ async function main() {
 
   console.log(`${COLORS.bold}AST Code Review${COLORS.nc}`);
   console.log('================================');
+  console.log(`  Project: ${CONFIG.isNestJS ? 'NestJS' : 'Generic TypeScript'}`);
+  console.log(`  Backend: ${CONFIG.backendPath}`);
   console.log('');
 
-  // Initialize ts-morph project
   console.log(`${COLORS.cyan}[1/4] Loading TypeScript project...${COLORS.nc}`);
 
-  const project = new Project({
-    tsConfigFilePath: TSCONFIG,
+  const projectOptions: any = {
     skipAddingFilesFromTsConfig: true,
     skipFileDependencyResolution: true,
-  });
+  };
+  if (CONFIG.tsconfigPath) {
+    projectOptions.tsConfigFilePath = CONFIG.tsconfigPath;
+  }
 
-  // Determine files to scan
-  let controllerGlob = `${API_SRC}/modules/**/*.controller.ts`;
-  let serviceGlob = `${API_SRC}/modules/**/*.service.ts`;
+  const project = new Project(projectOptions);
+
+  // Bug 13 fix: Scan ALL .ts/.tsx files, not just controllers/services
+  const backendSrc = path.join(PROJECT_ROOT, CONFIG.backendPath, 'src');
+  const frontendSrc = path.join(PROJECT_ROOT, CONFIG.frontendPath, 'src');
 
   if (changedOnly) {
     try {
+      const diffBase = CONFIG.backendPath.replace(/\/$/, '');
       const diffFiles = execSync('git diff --name-only HEAD~1', { encoding: 'utf-8' })
         .trim()
         .split('\n')
-        .filter(f => f.startsWith('apps/api/'))
+        .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
         .map(f => path.join(PROJECT_ROOT, f));
 
       for (const file of diffFiles) {
-        if (file.endsWith('.ts')) {
-          try {
+        try {
+          if (fs.existsSync(file)) {
             project.addSourceFileAtPath(file);
-          } catch {
-            // File might not exist (deleted)
           }
+        } catch {
+          // File might not exist (deleted)
         }
       }
       console.log(`  Scanning ${COLORS.green}${diffFiles.length}${COLORS.nc} changed files`);
     } catch {
       console.log(`  ${COLORS.yellow}Could not get git diff, scanning all files${COLORS.nc}`);
-      project.addSourceFilesAtPaths([controllerGlob, serviceGlob]);
+      addAllSourceFiles(project, backendSrc, frontendSrc);
     }
   } else {
-    project.addSourceFilesAtPaths([controllerGlob, serviceGlob]);
+    addAllSourceFiles(project, backendSrc, frontendSrc);
   }
 
   const sourceFiles = project.getSourceFiles();
+
+  // Categorize files
   const controllers = sourceFiles.filter(f => f.getFilePath().endsWith('.controller.ts'));
   const services = sourceFiles.filter(f => f.getFilePath().endsWith('.service.ts'));
+  const allTsFiles = sourceFiles;
 
   console.log(
-    `  Found ${COLORS.green}${controllers.length}${COLORS.nc} controllers, ${COLORS.green}${services.length}${COLORS.nc} services`,
+    `  Found ${COLORS.green}${allTsFiles.length}${COLORS.nc} files` +
+    (CONFIG.isNestJS ? ` (${controllers.length} controllers, ${services.length} services)` : ''),
   );
   console.log('');
 
   const findings: Finding[] = [];
 
-  // ─── Check Controllers ───
-  console.log(`${COLORS.cyan}[2/4] Analyzing controllers...${COLORS.nc}`);
+  // ─── NestJS-Specific Checks (conditional) ───
+  if (CONFIG.isNestJS) {
+    console.log(`${COLORS.cyan}[2/4] Analyzing NestJS controllers...${COLORS.nc}`);
 
-  for (const sourceFile of controllers) {
-    const filePath = sourceFile.getFilePath();
-    const classes = sourceFile.getClasses();
+    for (const sourceFile of controllers) {
+      const filePath = sourceFile.getFilePath();
+      const classes = sourceFile.getClasses();
 
-    for (const cls of classes) {
-      // Guard chain check
-      checkGuardChain(cls, findings, filePath);
-
-      // Method-level checks
-      for (const method of cls.getMethods()) {
-        checkMethodDecorators(cls, method, findings, filePath);
-        checkParameterUsage(cls, method, findings, filePath);
+      for (const cls of classes) {
+        checkGuardChain(cls, findings, filePath);
+        for (const method of cls.getMethods()) {
+          checkMethodDecorators(cls, method, findings, filePath);
+          checkParameterUsage(cls, method, findings, filePath);
+        }
       }
     }
 
-    // Cross-cutting checks
-    checkConsoleLog(sourceFile, findings);
-    checkRawSql(sourceFile, findings);
-    checkHardcodedSecrets(sourceFile, findings);
-    checkEmptyCatchBlocks(sourceFile, findings);
+    console.log(`${COLORS.cyan}[3/4] Analyzing NestJS services...${COLORS.nc}`);
+
+    for (const sourceFile of services) {
+      checkServiceTenantScoping(sourceFile, findings);
+    }
+  } else {
+    console.log(`${COLORS.cyan}[2/4] Skipping NestJS checks (not a NestJS project)${COLORS.nc}`);
+    console.log(`${COLORS.cyan}[3/4] Running generic checks...${COLORS.nc}`);
   }
 
-  // ─── Check Services ───
-  console.log(`${COLORS.cyan}[3/4] Analyzing services...${COLORS.nc}`);
+  // ─── Universal Checks (always run on all files) ───
+  console.log(`${COLORS.cyan}[4/4] Running universal checks on all files...${COLORS.nc}`);
 
-  for (const sourceFile of services) {
-    checkServiceTenantScoping(sourceFile, findings);
+  for (const sourceFile of allTsFiles) {
     checkConsoleLog(sourceFile, findings);
     checkRawSql(sourceFile, findings);
     checkHardcodedSecrets(sourceFile, findings);
     checkEmptyCatchBlocks(sourceFile, findings);
+    checkInnerHtmlWrites(sourceFile, findings);
+    checkHardcodedModelNames(sourceFile, findings);
+    checkSwitchWithoutDefault(sourceFile, findings);
   }
 
   // ─── Report ───
-  console.log(`${COLORS.cyan}[4/4] Generating report...${COLORS.nc}`);
   console.log('');
 
-  // Sort by severity (CRITICAL first), then confidence
   findings.sort((a, b) => {
     if (a.severity !== b.severity) return a.severity === 'CRITICAL' ? -1 : 1;
     return b.confidence - a.confidence;
@@ -502,7 +694,6 @@ async function main() {
   if (findings.length === 0) {
     console.log(`${COLORS.green}No issues found. All checks passed.${COLORS.nc}`);
   } else {
-    // Table header
     console.log(
       `${COLORS.bold}| # | File:Line | Severity | Confidence | Issue | Fix |${COLORS.nc}`,
     );
@@ -510,9 +701,8 @@ async function main() {
 
     findings.forEach((f, i) => {
       const sevColor = f.severity === 'CRITICAL' ? COLORS.red : COLORS.yellow;
-      const shortFile = f.file.replace('apps/api/src/modules/', '');
       console.log(
-        `| ${i + 1} | ${shortFile}:${f.line} | ${sevColor}${f.severity}${COLORS.nc} | ${f.confidence}% | ${f.issue} | ${f.fix} |`,
+        `| ${i + 1} | ${f.file}:${f.line} | ${sevColor}${f.severity}${COLORS.nc} | ${f.confidence}% | ${f.issue} | ${f.fix} |`,
       );
     });
   }
@@ -520,28 +710,28 @@ async function main() {
   console.log('');
   console.log('================================');
   console.log(
-    `  Files scanned:  ${COLORS.bold}${controllers.length + services.length}${COLORS.nc} (${controllers.length} controllers, ${services.length} services)`,
+    `  Files scanned:  ${COLORS.bold}${allTsFiles.length}${COLORS.nc}`,
   );
   console.log(
     `  Findings:       ${COLORS.red}${criticals.length} critical${COLORS.nc}, ${COLORS.yellow}${warnings.length} warnings${COLORS.nc}`,
   );
 
-  // Clean files
   const filesWithIssues = new Set(findings.map(f => f.file));
   const allFiles = sourceFiles.map(f => relativePath(f.getFilePath()));
   const cleanFiles = allFiles.filter(f => !filesWithIssues.has(f));
 
-  if (cleanFiles.length > 0) {
+  if (cleanFiles.length > 0 && cleanFiles.length <= 20) {
     console.log('');
     console.log(`${COLORS.bold}Clean files (no issues):${COLORS.nc}`);
     cleanFiles.forEach(f => {
-      console.log(`  ${COLORS.green}✓${COLORS.nc} ${f.replace('apps/api/src/modules/', '')}`);
+      console.log(`  ${COLORS.green}✓${COLORS.nc} ${f}`);
     });
+  } else if (cleanFiles.length > 20) {
+    console.log(`  ${COLORS.green}${cleanFiles.length} files clean (no issues)${COLORS.nc}`);
   }
 
   console.log('');
 
-  // Verdict
   if (criticals.length > 0) {
     console.log(`${COLORS.red}VERDICT: REQUEST CHANGES — ${criticals.length} critical issues found${COLORS.nc}`);
     process.exit(1);
@@ -551,6 +741,34 @@ async function main() {
   } else {
     console.log(`${COLORS.green}VERDICT: APPROVE — No issues detected${COLORS.nc}`);
     process.exit(0);
+  }
+}
+
+function addAllSourceFiles(project: Project, backendSrc: string, frontendSrc: string): void {
+  // Add backend source files
+  if (fs.existsSync(backendSrc)) {
+    project.addSourceFilesAtPaths([
+      `${backendSrc}/**/*.ts`,
+    ]);
+  }
+
+  // Add frontend source files
+  if (fs.existsSync(frontendSrc)) {
+    project.addSourceFilesAtPaths([
+      `${frontendSrc}/**/*.ts`,
+      `${frontendSrc}/**/*.tsx`,
+    ]);
+  }
+
+  // Fallback: if neither exists, try scanning from project root src/
+  if (!fs.existsSync(backendSrc) && !fs.existsSync(frontendSrc)) {
+    const rootSrc = path.join(PROJECT_ROOT, 'src');
+    if (fs.existsSync(rootSrc)) {
+      project.addSourceFilesAtPaths([
+        `${rootSrc}/**/*.ts`,
+        `${rootSrc}/**/*.tsx`,
+      ]);
+    }
   }
 }
 

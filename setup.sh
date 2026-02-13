@@ -345,6 +345,13 @@ GITIGNORE="$TARGET/.gitignore"
 # Compute relative path of kit directory from target project
 KIT_RELATIVE=$(python3 -c "import os.path; print(os.path.relpath('$KIT_DIR', '$TARGET'))" 2>/dev/null || echo "saascode-kit")
 
+# For npx installs, the relative path contains _npx or node_modules — use generic pattern
+case "$KIT_RELATIVE" in
+  *_npx*|*node_modules*)
+    KIT_RELATIVE="saascode-kit"
+    ;;
+esac
+
 # Personal (device-local, each dev uses their own IDE)
 # Team-shared files: .saascode/, .github/workflows/ — NOT gitignored
 ADDITIONS=(

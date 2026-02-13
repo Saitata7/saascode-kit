@@ -31,7 +31,7 @@ read_manifest() {
   local MANIFEST=""
   local ROOT="${_LIB_ROOT:-$(find_root)}"
 
-  for CANDIDATE in "$ROOT/saascode-kit/manifest.yaml" "$ROOT/.saascode/manifest.yaml" "$ROOT/manifest.yaml"; do
+  for CANDIDATE in "$ROOT/saascode-kit/manifest.yaml" "$ROOT/.saascode/manifest.yaml" "$ROOT/manifest.yaml" "$ROOT/saascode-kit.yaml"; do
     [ -f "$CANDIDATE" ] && MANIFEST="$CANDIDATE" && break
   done
   [ -z "$MANIFEST" ] && echo "$DEFAULT" && return
@@ -129,11 +129,39 @@ load_manifest_vars() {
   FRONTEND_HOST="${M_infra_frontend_host:-}"
   BACKEND_HOST="${M_infra_backend_host:-}"
   CI_PROVIDER="${M_infra_ci_provider:-github}"
+
+  # Export template variables for conditional processing (awk ENVIRON)
+  export TMPL_auth_guard_pattern="$GUARD_PATTERN"
+  export TMPL_auth_multi_tenant="${M_auth_multi_tenant:-}"
+  export TMPL_tenancy_enabled="${M_tenancy_enabled:-}"
+  export TMPL_billing_enabled="${M_billing_enabled:-}"
+  export TMPL_ai_enabled="${M_ai_enabled:-}"
+  export TMPL_paths_shared="$SHARED_PATH"
+  export TMPL_billing_webhooks="${M_billing_webhooks:-}"
+  export TMPL_patterns_colors="${M_patterns_colors:-}"
+
+  # Dot-notation aliases used in templates
+  export "TMPL_auth.guard_pattern=$GUARD_PATTERN"
+  export "TMPL_auth.multi_tenant=${M_auth_multi_tenant:-}"
+  export "TMPL_tenancy.enabled=${M_tenancy_enabled:-}"
+  export "TMPL_billing.enabled=${M_billing_enabled:-}"
+  export "TMPL_ai.enabled=${M_ai_enabled:-}"
+  export "TMPL_paths.shared=$SHARED_PATH"
+  export "TMPL_billing.webhooks=${M_billing_webhooks:-}"
+  export "TMPL_patterns.colors=${M_patterns_colors:-}"
+  export "TMPL_stack.backend.framework=$BACKEND_FRAMEWORK"
 }
 
 # ─── Replace template placeholders ───
 replace_placeholders() {
   local FILE="$1"
+
+  # Compute dynamic placeholders
+  local GENERATED_DATE
+  GENERATED_DATE="$(date +%Y-%m-%d)"
+  local SCHEMA_RELATIVE_PATH
+  SCHEMA_RELATIVE_PATH="$(echo "$SCHEMA_PATH" | sed "s|^$BACKEND_PATH/||")"
+
   sed -i.bak \
     -e "s|{{project.name}}|$PROJECT_NAME|g" \
     -e "s|{{project.description}}|$PROJECT_DESC|g" \
@@ -163,6 +191,103 @@ replace_placeholders() {
     -e "s|{{paths.components}}|$COMPONENTS_PATH|g" \
     -e "s|{{infra.frontend_host}}|$FRONTEND_HOST|g" \
     -e "s|{{infra.backend_host}}|$BACKEND_HOST|g" \
+    -e "s|{{generated_date}}|$GENERATED_DATE|g" \
+    -e "s|{{schema_relative_path}}|$SCHEMA_RELATIVE_PATH|g" \
+    "$FILE"
+  rm -f "${FILE}.bak"
+
+  # Process conditional blocks
+  process_conditionals "$FILE"
+}
+
+# ─── Process template conditional blocks ───
+# Handles {{#if VAR}}, {{#if_eq VAR "value"}}, and {{#each VAR}} blocks
+process_conditionals() {
+  local FILE="$1"
+  local TMPFILE="${FILE}.cond_tmp"
+
+  # --- 1. Process {{#if_eq field "value"}}...{{/if_eq}} ---
+  # Extract all if_eq blocks and evaluate them
+  awk '
+  BEGIN { skip=0; depth=0 }
+  /\{\{#if_eq / {
+    match($0, /\{\{#if_eq ([^ ]+) "([^"]*)"/, arr)
+    if (RSTART > 0) {
+      var = arr[1]; val = arr[2]
+      # Read variable from environment via ENVIRON
+      actual = ENVIRON["TMPL_" var]
+      if (actual == val) {
+        # Keep block contents, remove the tag line
+        next
+      } else {
+        skip = 1; depth = 1
+        next
+      }
+    }
+  }
+  /\{\{\/if_eq\}\}/ {
+    if (skip && depth == 1) {
+      skip = 0; depth = 0
+      next
+    }
+    if (!skip) next
+  }
+  skip { next }
+  { print }
+  ' "$FILE" > "$TMPFILE"
+  mv "$TMPFILE" "$FILE"
+
+  # --- 2. Process {{#if field}}...{{/if}} ---
+  # Uses simple awk: check if the variable is non-empty and not "false"/"none"
+  awk '
+  BEGIN { skip=0; depth=0 }
+  /\{\{#if [a-zA-Z]/ {
+    match($0, /\{\{#if ([a-zA-Z_.]+)/, arr)
+    if (RSTART > 0) {
+      var = arr[1]
+      actual = ENVIRON["TMPL_" var]
+      if (actual != "" && actual != "false" && actual != "none" && actual != "False") {
+        next
+      } else {
+        skip = 1; depth = 1
+        next
+      }
+    }
+  }
+  /\{\{\/if\}\}/ {
+    if (skip && depth == 1) {
+      skip = 0; depth = 0
+      next
+    }
+    if (!skip) next
+  }
+  skip { next }
+  { print }
+  ' "$FILE" > "$TMPFILE"
+  mv "$TMPFILE" "$FILE"
+
+  # --- 3. Remove {{#each ...}}...{{/each}} blocks ---
+  # Bash cannot iterate YAML arrays; remove these blocks cleanly
+  awk '
+  BEGIN { skip=0 }
+  /\{\{#each / { skip=1; next }
+  /\{\{\/each\}\}/ { skip=0; next }
+  skip { next }
+  { print }
+  ' "$FILE" > "$TMPFILE"
+  mv "$TMPFILE" "$FILE"
+
+  # --- 4. Clean up any remaining inline conditionals on single lines ---
+  # e.g., {{#if foo}}text{{/if}} on one line
+  sed -i.bak \
+    -e 's/{{#if [^}]*}}//g' \
+    -e 's/{{\/if}}//g' \
+    -e 's/{{#if_eq [^}]*}}//g' \
+    -e 's/{{\/if_eq}}//g' \
+    -e 's/{{#each [^}]*}}//g' \
+    -e 's/{{\/each}}//g' \
+    -e 's/{{this\.[^}]*}}//g' \
+    -e 's/{{this}}//g' \
     "$FILE"
   rm -f "${FILE}.bak"
 }

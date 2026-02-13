@@ -23,7 +23,7 @@ read_manifest() {
   local DEFAULT="$2"
   local MANIFEST=""
 
-  for CANDIDATE in "$PROJECT_ROOT/saascode-kit/manifest.yaml" "$PROJECT_ROOT/.saascode/manifest.yaml" "$PROJECT_ROOT/manifest.yaml"; do
+  for CANDIDATE in "$PROJECT_ROOT/saascode-kit/manifest.yaml" "$PROJECT_ROOT/.saascode/manifest.yaml" "$PROJECT_ROOT/manifest.yaml" "$PROJECT_ROOT/saascode-kit.yaml"; do
     [ -f "$CANDIDATE" ] && MANIFEST="$CANDIDATE" && break
   done
   [ -z "$MANIFEST" ] && echo "$DEFAULT" && return

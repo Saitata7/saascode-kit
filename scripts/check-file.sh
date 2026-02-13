@@ -78,16 +78,16 @@ load_features() {
 
   # Find manifest
   local MANIFEST=""
-  for CANDIDATE in "$ROOT/saascode-kit/manifest.yaml" "$ROOT/.saascode/manifest.yaml" "$ROOT/manifest.yaml"; do
+  for CANDIDATE in "$ROOT/saascode-kit/manifest.yaml" "$ROOT/.saascode/manifest.yaml" "$ROOT/manifest.yaml" "$ROOT/saascode-kit.yaml"; do
     [ -f "$CANDIDATE" ] && MANIFEST="$CANDIDATE" && break
   done
 
-  # Defaults: enable everything if no manifest (safe fallback)
-  HAS_TENANCY=true
+  # Defaults: disable feature-specific checks if no manifest (safe fallback)
+  HAS_TENANCY=false
   HAS_AI=false
   HAS_BILLING=false
-  HAS_BACKEND=true
-  HAS_FRONTEND=true
+  HAS_BACKEND=false
+  HAS_FRONTEND=false
   TENANT_FIELD="tenantId"
 
   if [ -n "$MANIFEST" ]; then

@@ -39,7 +39,7 @@ gate() {
 }
 
 # ─── 1. TypeScript ───
-echo "\n${CYAN}[1/7] TypeScript Check${NC}"
+printf "\n${CYAN}[1/7] TypeScript Check${NC}\n"
 if npm run typecheck > /dev/null 2>&1; then
   gate "TypeScript compilation" "pass"
 else
@@ -47,7 +47,7 @@ else
 fi
 
 # ─── 2. Backend Build ───
-echo "\n${CYAN}[2/7] Backend Build${NC}"
+printf "\n${CYAN}[2/7] Backend Build${NC}\n"
 if npm --prefix "$BACKEND" run build > /dev/null 2>&1; then
   gate "Backend build" "pass"
 else
@@ -55,7 +55,7 @@ else
 fi
 
 # ─── 3. Frontend Build ───
-echo "\n${CYAN}[3/7] Frontend Build${NC}"
+printf "\n${CYAN}[3/7] Frontend Build${NC}\n"
 if npm --prefix "$FRONTEND" run build > /dev/null 2>&1; then
   gate "Frontend build" "pass"
 else
@@ -63,7 +63,7 @@ else
 fi
 
 # ─── 4. Tests ───
-echo "\n${CYAN}[4/7] Tests${NC}"
+printf "\n${CYAN}[4/7] Tests${NC}\n"
 if npm --prefix "$BACKEND" run test > /dev/null 2>&1; then
   gate "Backend tests" "pass"
 else
@@ -71,7 +71,7 @@ else
 fi
 
 # ─── 5. Security Audit ───
-echo "\n${CYAN}[5/7] Security Audit${NC}"
+printf "\n${CYAN}[5/7] Security Audit${NC}\n"
 AUDIT_OUTPUT=$(npm audit --audit-level=critical 2>&1)
 AUDIT_EXIT=$?
 if [ $AUDIT_EXIT -eq 0 ]; then
@@ -86,7 +86,7 @@ else
 fi
 
 # ─── 6. Secrets Check ───
-echo "\n${CYAN}[6/7] Secrets Check${NC}"
+printf "\n${CYAN}[6/7] Secrets Check${NC}\n"
 SECRETS=$(grep -rn 'password\s*=\|secret\s*=\|api[_-]\?key\s*=' --include="*.ts" "$BACKEND/src/" "$FRONTEND/src/" 2>/dev/null | grep -v 'process.env\|@Is\|interface\|type \|\.d\.ts\|\.test\.\|\.spec\.')
 if [ -z "$SECRETS" ]; then
   gate "No hardcoded secrets" "pass"
@@ -96,7 +96,7 @@ else
 fi
 
 # ─── 7. Health Check (if server running) ───
-echo "\n${CYAN}[7/7] Health Check${NC}"
+printf "\n${CYAN}[7/7] Health Check${NC}\n"
 HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" 2>/dev/null)
 if [ "$HEALTH" = "200" ]; then
   gate "API health endpoint" "pass"
@@ -108,14 +108,14 @@ fi
 
 # ─── Migration Status ───
 if [ -f "$BACKEND/prisma/schema.prisma" ]; then
-  echo "\n${CYAN}Migration Status:${NC}"
+  printf "\n${CYAN}Migration Status:${NC}\n"
   cd "$BACKEND" && npx prisma migrate status 2>/dev/null || echo "  Could not check migration status"
   cd - > /dev/null
 fi
 
 # ─── Report ───
 TOTAL=$((GATES_PASSED + GATES_FAILED + GATES_WARNED))
-echo "\n═══════════════════════════════════════════════"
+printf "\n═══════════════════════════════════════════════\n"
 echo "  Deployment Readiness"
 echo "═══════════════════════════════════════════════"
 echo "  ${GREEN}Passed:   $GATES_PASSED / $TOTAL${NC}"
@@ -123,14 +123,14 @@ echo "  ${YELLOW}Warnings: $GATES_WARNED${NC}"
 echo "  ${RED}Failed:   $GATES_FAILED${NC}"
 
 if [ $GATES_FAILED -gt 0 ]; then
-  echo "\n${RED}  DEPLOY: BLOCKED${NC}"
+  printf "\n${RED}  DEPLOY: BLOCKED${NC}\n"
   echo "  Fix $GATES_FAILED failing gate(s) before deploying."
   exit 1
 elif [ $GATES_WARNED -gt 0 ]; then
-  echo "\n${YELLOW}  DEPLOY: PROCEED WITH CAUTION${NC}"
+  printf "\n${YELLOW}  DEPLOY: PROCEED WITH CAUTION${NC}\n"
   echo "  $GATES_WARNED warning(s) should be reviewed."
   exit 0
 else
-  echo "\n${GREEN}  DEPLOY: APPROVED${NC}"
+  printf "\n${GREEN}  DEPLOY: APPROVED${NC}\n"
   exit 0
 fi

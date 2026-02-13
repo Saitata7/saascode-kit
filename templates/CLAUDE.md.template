@@ -22,16 +22,10 @@
 
 ```
 {{paths.backend}}/                    # Backend ({{stack.backend.framework}})
-  src/
-    modules/[feature]/                # Feature modules
-  {{schema_relative_path}}            # Database schema
-
 {{paths.frontend}}/                   # Frontend ({{stack.frontend.framework}})
-  src/
-    app/                              # Pages/routes
-    components/                       # UI components
-    lib/api/                          # API client functions
-
+{{paths.schema}}                      # Database schema
+{{paths.api_client}}/                 # API client functions
+{{paths.components}}/                 # UI components
 {{#if paths.shared}}{{paths.shared}}/  # Shared types{{/if}}
 ```
 
@@ -106,14 +100,11 @@ if (!record || record.{{tenancy.identifier}} !== {{tenancy.identifier}}) throw N
 When building a new feature, ALWAYS follow this order:
 
 ```
-1. Database Schema  → {{paths.schema}}
-2. Backend DTOs     → {{paths.backend}}/src/modules/[feature]/dto/
-3. Backend Service  → {{paths.backend}}/src/modules/[feature]/[feature].service.ts
-4. Backend Controller → {{paths.backend}}/src/modules/[feature]/[feature].controller.ts
-5. Backend Module   → {{paths.backend}}/src/modules/[feature]/[feature].module.ts
-6. Frontend API Client → {{paths.api_client}}/[feature].ts
-7. Frontend Components → {{paths.components}}/[feature]/
-8. Frontend Pages   → {{paths.frontend}}/src/app/[feature]/
+1. Database Schema     → {{paths.schema}}
+2. Backend Logic       → {{paths.backend}}/
+3. Frontend API Client → {{paths.api_client}}/[feature].ts
+4. Frontend Components → {{paths.components}}/[feature]/
+5. Frontend Pages      → {{paths.frontend}}/
 ```
 
 ## API Design
@@ -182,12 +173,11 @@ After any feature, run ALL:
 ```bash
 # Build
 npm run typecheck
-npm --prefix {{paths.backend}} run build
-npm --prefix {{paths.frontend}} run build
+npm --prefix {{paths.backend}} run build 2>/dev/null || npm run build
+npm --prefix {{paths.frontend}} run build 2>/dev/null || true
 
-# Endpoint parity
-grep -E "apiClient\.(get|post|patch|delete)" {{paths.api_client}}/*.ts
-grep -E "@(Get|Post|Patch|Put|Delete)" {{paths.backend}}/src/modules/*/*.controller.ts
+# Endpoint parity (if using saascode-kit)
+saascode parity
 ```
 
 ## Do NOT

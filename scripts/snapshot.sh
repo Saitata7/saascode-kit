@@ -22,7 +22,7 @@ read_manifest() {
   local DEFAULT="$2"
   local MANIFEST=""
 
-  for CANDIDATE in "$PROJECT_ROOT/saascode-kit/manifest.yaml" "$PROJECT_ROOT/.saascode/manifest.yaml" "$PROJECT_ROOT/manifest.yaml"; do
+  for CANDIDATE in "$PROJECT_ROOT/saascode-kit/manifest.yaml" "$PROJECT_ROOT/.saascode/manifest.yaml" "$PROJECT_ROOT/manifest.yaml" "$PROJECT_ROOT/saascode-kit.yaml"; do
     [ -f "$CANDIDATE" ] && MANIFEST="$CANDIDATE" && break
   done
   [ -z "$MANIFEST" ] && echo "$DEFAULT" && return
@@ -32,7 +32,7 @@ read_manifest() {
 
   if [ "$SECTION" = "$FIELD" ]; then
     awk -v key="$SECTION" '
-      /^[a-z]/ && $1 == key":" { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val); print val; exit }
+      /^[a-z]/ && $1 == key":" { val=$0; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#[[:space:]].*$/, "", val); gsub(/^"|"$/, "", val); print val; exit }
     ' "$MANIFEST"
   else
     awk -v section="$SECTION" -v field="$FIELD" '
@@ -41,7 +41,7 @@ read_manifest() {
       in_section && /^  [a-z]/ {
         line=$0; sub(/^[[:space:]]+/, "", line)
         if (line ~ "^"field":") {
-          val=line; sub(/^[^:]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val); print val; exit
+          val=line; sub(/^[^:]+:[[:space:]]*/, "", val); sub(/[[:space:]]+#[[:space:]].*$/, "", val); gsub(/^"|"$/, "", val); print val; exit
         }
       }
     ' "$MANIFEST"
@@ -88,7 +88,7 @@ cat > "$OUTPUT" << EOF
 EOF
 
 # ─── 1. Models ───
-echo -e "${YELLOW}[1/5] Extracting models from schema...${NC}"
+echo -e "${YELLOW}[1/6] Extracting models from schema...${NC}"
 if [ -f "$SCHEMA" ]; then
   echo "## Models" >> "$OUTPUT"
   # Extract model names and their fields in compact format
@@ -114,13 +114,22 @@ if [ -f "$SCHEMA" ]; then
   MODEL_COUNT=$(grep -c "^model " "$SCHEMA" 2>/dev/null || echo "0")
   echo -e "  ${GREEN}Found $MODEL_COUNT models${NC}"
 else
+  # Fallback: look for TypeScript type/interface definitions as "models"
   echo "## Models" >> "$OUTPUT"
-  echo "(schema not found at $SCHEMA_REL)" >> "$OUTPUT"
+  echo "(No Prisma schema found at $SCHEMA_REL — scanning for TypeScript types)" >> "$OUTPUT"
+  TYPES_FOUND=$(grep -rn "export\s\+\(interface\|type\)\s" --include="*.ts" "$PROJECT_ROOT/$BACKEND_PATH/src/" 2>/dev/null | head -20)
+  if [ -n "$TYPES_FOUND" ]; then
+    echo "$TYPES_FOUND" | while read -r line; do
+      name=$(echo "$line" | sed -nE 's/.*export\s+(interface|type)\s+([A-Za-z_]+).*/\2/p')
+      file=$(echo "$line" | cut -d: -f1 | sed "s|$PROJECT_ROOT/||")
+      [ -n "$name" ] && echo "- $name ($file)" >> "$OUTPUT"
+    done
+  fi
   echo "" >> "$OUTPUT"
 fi
 
 # ─── 2. Enums ───
-echo -e "${YELLOW}[2/5] Extracting enums...${NC}"
+echo -e "${YELLOW}[2/6] Extracting enums...${NC}"
 if [ -f "$SCHEMA" ]; then
   echo "## Enums" >> "$OUTPUT"
   awk '
@@ -137,8 +146,8 @@ if [ -f "$SCHEMA" ]; then
 fi
 
 # ─── 3. Endpoints ───
-echo -e "${YELLOW}[3/5] Extracting endpoints from controllers...${NC}"
-echo "## Tenant Endpoints" >> "$OUTPUT"
+echo -e "${YELLOW}[3/6] Extracting endpoints from controllers...${NC}"
+echo "## Endpoints" >> "$OUTPUT"
 if [ -d "$CONTROLLERS_DIR" ]; then
   # Find all non-platform controllers
   find "$CONTROLLERS_DIR" -name "*.controller.ts" -not -path "*/platform/*" | sort | while read -r file; do
@@ -172,10 +181,21 @@ if [ -d "$CONTROLLERS_DIR" ]; then
   done
   CTRL_COUNT=$(find "$CONTROLLERS_DIR" -name "*.controller.ts" -not -path "*/platform/*" | wc -l | tr -d ' ')
   echo -e "  ${GREEN}Found $CTRL_COUNT controllers${NC}"
+else
+  # Fallback: look for route files, handlers, or entry points
+  ROUTE_FILES=$(find "$PROJECT_ROOT/$BACKEND_PATH/src" -name "*.route.*" -o -name "*.routes.*" -o -name "router.*" -o -name "handler.*" 2>/dev/null | head -20)
+  if [ -n "$ROUTE_FILES" ]; then
+    echo "$ROUTE_FILES" | while read -r file; do
+      echo "- $(echo "$file" | sed "s|$PROJECT_ROOT/||")" >> "$OUTPUT"
+    done
+  else
+    echo "(No controllers or route files found)" >> "$OUTPUT"
+  fi
+  echo "" >> "$OUTPUT"
 fi
 
 # ─── 4. Pages ───
-echo -e "${YELLOW}[4/5] Extracting pages...${NC}"
+echo -e "${YELLOW}[4/6] Extracting pages...${NC}"
 echo "## Pages" >> "$OUTPUT"
 if [ -d "$PAGES_DIR" ]; then
   find "$PAGES_DIR" -name "page.tsx" | sort | while read -r file; do
@@ -195,10 +215,26 @@ if [ -d "$PAGES_DIR" ]; then
   echo "" >> "$OUTPUT"
   PAGE_COUNT=$(find "$PAGES_DIR" -name "page.tsx" | wc -l | tr -d ' ')
   echo -e "  ${GREEN}Found $PAGE_COUNT pages${NC}"
+else
+  # Fallback: look for React components, HTML files, or route-based pages
+  FRONTEND_SRC="$PROJECT_ROOT/$FRONTEND_PATH/src"
+  if [ -d "$FRONTEND_SRC" ]; then
+    COMP_FILES=$(find "$FRONTEND_SRC" \( -name "*.tsx" -o -name "*.jsx" \) -not -path "*/node_modules/*" 2>/dev/null | head -20)
+    if [ -n "$COMP_FILES" ]; then
+      echo "$COMP_FILES" | while read -r file; do
+        echo "- $(echo "$file" | sed "s|$PROJECT_ROOT/||")" >> "$OUTPUT"
+      done
+    else
+      echo "(No page files found)" >> "$OUTPUT"
+    fi
+  else
+    echo "(Frontend src directory not found)" >> "$OUTPUT"
+  fi
+  echo "" >> "$OUTPUT"
 fi
 
 # ─── 5. Components & API Client Files ───
-echo -e "${YELLOW}[5/5] Extracting components and API client files...${NC}"
+echo -e "${YELLOW}[5/6] Extracting components and API client files...${NC}"
 
 echo "## Reusable Components" >> "$OUTPUT"
 if [ -d "$COMPONENTS_DIR" ]; then
@@ -220,6 +256,26 @@ if [ -d "$API_CLIENT_DIR" ]; then
   echo "Path: ${API_CLIENT_REL}/[name].ts" >> "$OUTPUT"
   echo "Import: apiClient from @/lib/api-client" >> "$OUTPUT"
 fi
+
+# ─── 6. Files by Directory ───
+echo -e "${YELLOW}[6/6] Generating directory overview...${NC}"
+echo "" >> "$OUTPUT"
+echo "## Files by Directory" >> "$OUTPUT"
+for DIR in "$PROJECT_ROOT/$BACKEND_PATH/src" "$PROJECT_ROOT/$FRONTEND_PATH/src"; do
+  if [ -d "$DIR" ]; then
+    REL_DIR=$(echo "$DIR" | sed "s|$PROJECT_ROOT/||")
+    echo "" >> "$OUTPUT"
+    echo "### $REL_DIR" >> "$OUTPUT"
+    # List top-level subdirectories with file counts
+    for SUBDIR in "$DIR"/*/; do
+      [ -d "$SUBDIR" ] || continue
+      SUBNAME=$(basename "$SUBDIR")
+      FILE_COUNT=$(find "$SUBDIR" \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) -not -path "*/node_modules/*" 2>/dev/null | wc -l | tr -d ' ')
+      [ "$FILE_COUNT" -gt 0 ] && echo "- ${SUBNAME}/ ($FILE_COUNT files)" >> "$OUTPUT"
+    done
+  fi
+done
+echo "" >> "$OUTPUT"
 
 echo ""
 echo -e "${GREEN}Snapshot generated: ${OUTPUT}${NC}"

@@ -32,9 +32,19 @@ find . \( -name "*.txt" -o -name "*.rst" \) -not -path "*/node_modules/*" | grep
 
 # Extract from code (always do this)
 cat package.json */package.json 2>/dev/null
-find . -name "schema.prisma" | grep -v node_modules
-grep -rn "@\(Get\|Post\|Put\|Patch\|Delete\|All\)\|@Controller" --include="*.controller.ts"
-find . -path "*/src/modules/*" -name "*.module.ts" | grep -v node_modules
+
+# Database schemas (framework-agnostic)
+find . \( -name "*.schema.*" -o -name "schema.*" -o -name "*.prisma" \) -not -path "*/node_modules/*"
+
+# API endpoints / routes (detect project type)
+# If NestJS: scan controllers
+grep -rn "@\(Get\|Post\|Put\|Patch\|Delete\|All\)\|@Controller" --include="*.controller.ts" 2>/dev/null
+# If Express/Fastify: scan route files
+find . \( -name "*.route.*" -o -name "*.routes.*" -o -name "router.*" \) -not -path "*/node_modules/*" 2>/dev/null
+
+# Module/feature structure
+find . -path "*/src/modules/*" -name "*.module.ts" -not -path "*/node_modules/*" 2>/dev/null
+find . -path "*/src/*" \( -name "index.ts" -o -name "index.js" \) -not -path "*/node_modules/*" 2>/dev/null | head -20
 ```
 
 ### Step 2: Classify Every File
@@ -78,11 +88,11 @@ Create only dirs that have content. Archived files go to `_archive/` with `_INDE
 
 **From existing files:** merge/move per catalog.
 **From code (if no files):**
-- `architecture.md` ← package.json + module structure + auth guards
-- `data-model.md` ← schema.prisma → Mermaid erDiagram
-- `api-reference.md` ← all *.controller.ts endpoints
-- `features/` ← one per backend module (controller + service + DTOs)
-- `security.md` ← guard/middleware chain
+- `architecture.md` ← package.json + module structure + auth setup
+- `data-model.md` ← schema files (Prisma, TypeORM, Mongoose, etc.) → Mermaid erDiagram
+- `api-reference.md` ← controllers (NestJS), route files (Express/Fastify), or handler files
+- `features/` ← one per backend module/feature directory
+- `security.md` ← guard/middleware chain or auth middleware
 - `integrations.md` ← third-party imports
 
 ### Step 5: Diagrams (Mermaid)

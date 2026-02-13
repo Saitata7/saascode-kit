@@ -9,7 +9,15 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-SCRIPT="$PROJECT_ROOT/saascode-kit/scripts/ast-review.ts"
+SCRIPT=""
+for CANDIDATE in "$PROJECT_ROOT/.saascode/scripts/ast-review.ts" "$PROJECT_ROOT/saascode-kit/scripts/ast-review.ts"; do
+  [ -f "$CANDIDATE" ] && SCRIPT="$CANDIDATE" && break
+done
+
+if [ -z "$SCRIPT" ]; then
+  echo -e "${RED}ast-review.ts not found. Run: saascode init${NC}"
+  exit 1
+fi
 
 # Check ts-morph is installed
 if ! node -e "require('ts-morph')" 2>/dev/null; then

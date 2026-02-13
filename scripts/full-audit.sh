@@ -32,15 +32,15 @@ check() {
 
   if [ -n "$RESULT" ]; then
     if [ "$SEVERITY" = "critical" ]; then
-      echo "\n${RED}[CRITICAL] $LABEL${NC}"
+      printf "\n${RED}[CRITICAL] %s${NC}\n" "$LABEL"
       CRITICAL=$((CRITICAL + 1))
     else
-      echo "\n${YELLOW}[WARNING] $LABEL${NC}"
+      printf "\n${YELLOW}[WARNING] %s${NC}\n" "$LABEL"
       WARNINGS=$((WARNINGS + 1))
     fi
     echo "$RESULT"
   else
-    echo "${GREEN}[PASS] $LABEL${NC}"
+    printf "${GREEN}[PASS] %s${NC}\n" "$LABEL"
     PASS=$((PASS + 1))
   fi
 }
@@ -48,7 +48,7 @@ check() {
 # ═══════════════════════════════════════
 # SECURITY CHECKS
 # ═══════════════════════════════════════
-echo "\n${CYAN}── Security ──${NC}"
+printf "\n${CYAN}── Security ──${NC}\n"
 
 # 1. Auth Guard: @Roles without RolesGuard
 ROLES_ISSUES=$(grep -rn "@Roles(" --include="*.ts" "$BACKEND/src/modules/" 2>/dev/null | while read LINE; do
@@ -86,7 +86,7 @@ check ".env files in git" "$ENV_TRACKED" "critical"
 # ═══════════════════════════════════════
 # QUALITY CHECKS
 # ═══════════════════════════════════════
-echo "\n${CYAN}── Quality ──${NC}"
+printf "\n${CYAN}── Quality ──${NC}\n"
 
 # 8. DTOs without validation
 if [ -d "$BACKEND/src/modules" ]; then
@@ -99,13 +99,14 @@ CONSOLE_LOGS=$(grep -rn "console\.log" --include="*.service.ts" --include="*.con
 check "console.log in backend services/controllers" "$CONSOLE_LOGS" "warning"
 
 # 10. Empty catch blocks
-EMPTY_CATCH=$(grep -rn "catch.*{" --include="*.ts" --include="*.tsx" "$BACKEND/src/" "$FRONTEND/src/" 2>/dev/null | grep -A1 "catch" | grep -B1 "}" | grep "catch" | head -5)
+EMPTY_CATCH=$(grep -Pzol 'catch\s*(\([^)]*\))?\s*\{\s*\}' --include="*.ts" --include="*.tsx" -r "$BACKEND/src/" "$FRONTEND/src/" 2>/dev/null | head -5)
+[ -z "$EMPTY_CATCH" ] && EMPTY_CATCH=$(grep -rn 'catch\s*([^)]*)\s*{\s*}' --include="*.ts" --include="*.tsx" "$BACKEND/src/" "$FRONTEND/src/" 2>/dev/null | head -5)
 check "Potentially empty catch blocks" "$EMPTY_CATCH" "warning"
 
 # ═══════════════════════════════════════
 # PATTERN CHECKS
 # ═══════════════════════════════════════
-echo "\n${CYAN}── Patterns ──${NC}"
+printf "\n${CYAN}── Patterns ──${NC}\n"
 
 # 11. Endpoint parity count
 if [ -d "$API_CLIENT" ]; then
@@ -139,7 +140,7 @@ fi
 # ═══════════════════════════════════════
 # REPORT
 # ═══════════════════════════════════════
-echo "\n═══════════════════════════════════════════════"
+printf "\n═══════════════════════════════════════════════\n"
 echo "  Audit Summary"
 echo "═══════════════════════════════════════════════"
 echo "  ${RED}Critical: $CRITICAL${NC}"
@@ -149,12 +150,12 @@ TOTAL=$((CRITICAL + WARNINGS + PASS))
 echo "  Total checks: $TOTAL"
 
 if [ $CRITICAL -gt 0 ]; then
-  echo "\n${RED}STATUS: FAIL — $CRITICAL critical issue(s) must be fixed${NC}"
+  printf "\n${RED}STATUS: FAIL — $CRITICAL critical issue(s) must be fixed${NC}\n"
   exit 1
 elif [ $WARNINGS -gt 0 ]; then
-  echo "\n${YELLOW}STATUS: WARN — $WARNINGS warning(s) should be reviewed${NC}"
+  printf "\n${YELLOW}STATUS: WARN — $WARNINGS warning(s) should be reviewed${NC}\n"
   exit 0
 else
-  echo "\n${GREEN}STATUS: PASS — All checks clean${NC}"
+  printf "\n${GREEN}STATUS: PASS — All checks clean${NC}\n"
   exit 0
 fi
