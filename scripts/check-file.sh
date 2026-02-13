@@ -702,6 +702,7 @@ if [ "$HAS_BACKEND" = true ]; then
     esac
   fi
 
+  _ISSUE_CAT="backend-quality"
   # ─── NestJS-specific service checks ───
   case "${BACKEND_FW:-}" in
     nestjs)
