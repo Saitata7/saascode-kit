@@ -27,9 +27,9 @@ saascode-kit/
 │   ├── run-tests.sh
 │   ├── TEST-RESULTS.md
 │   ├── TEST-SCORECARD.md
-│   ├── CLAUDE-TEST-RESULTS.md
 │   └── README.md
-└── docs/            # Documentation only
+└── docs/             # Documentation only
+    └── FOR-AI-AGENTS.md
 ```
 
 ### Before Creating ANY File:

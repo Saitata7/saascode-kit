@@ -39,7 +39,7 @@
 ### Your Quick Start Guide
 
 1. **After `saascode init`** → Read `CLAUDE.md` in project root (your main instructions)
-2. **Before making changes** → Read [AI-AGENT-GUIDELINES.md](AI-AGENT-GUIDELINES.md) (rules, anti-hallucination checklist)
+2. **Before making changes** → Read [docs/FOR-AI-AGENTS.md](docs/FOR-AI-AGENTS.md) (comprehensive reference guide)
 3. **Use these commands:**
    - `saascode review` — Before every commit
    - `saascode check-file <file>` — After editing files
@@ -63,7 +63,7 @@
 ✅ **Do update:** Existing files instead of creating new ones
 ✅ **Always validate:** Run `bash scripts/validate-structure.sh` before commit
 
-**Full AI documentation:** [AI-AGENT-GUIDELINES.md](AI-AGENT-GUIDELINES.md)
+**Full AI documentation:** [docs/FOR-AI-AGENTS.md](docs/FOR-AI-AGENTS.md)
 
 ---
 

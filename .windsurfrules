@@ -33,7 +33,8 @@ saascode-kit/
 │   ├── TEST-RESULTS.md
 │   ├── TEST-SCORECARD.md
 │   └── README.md
-└── docs/            # Documentation only
+└── docs/             # Documentation only
+    └── FOR-AI-AGENTS.md
 ```
 
 ## Testing Rules
