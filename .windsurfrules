@@ -1,0 +1,91 @@
+# Windsurf Rules for SaasCode Kit Development
+
+## File Creation Rules
+
+### ❌ DO NOT CREATE:
+- Extra documentation files (*.md) unless explicitly requested
+- Duplicate test result files
+- Temporary analysis files (TEMP-*, ANALYSIS-*, DEBUG-*)
+- Log files in project root
+- Any files starting with TEMP_, TEST_, ANALYSIS_, DEBUG_
+
+### ✅ ONLY CREATE:
+- Files explicitly requested by user
+- Required config files (package.json, tsconfig.json, etc.)
+- Source code files in appropriate directories
+- Test files in tests/ directory (if adding new tests)
+
+### Before Creating ANY File:
+1. **Ask first** - "Should I create [filename]?"
+2. **Check if it already exists**
+3. **Verify it's in the right directory**
+4. **Confirm it's not duplicate functionality**
+
+## Directory Structure (NEVER modify without permission)
+
+```
+saascode-kit/
+├── scripts/          # Core scripts only (.sh, .ts, .py, .js)
+├── templates/        # Template files only
+├── hooks/            # Git hooks only
+├── tests/            # Test infrastructure only
+│   ├── run-tests.sh
+│   ├── TEST-RESULTS.md
+│   ├── TEST-SCORECARD.md
+│   └── README.md
+└── docs/            # Documentation only
+```
+
+## Testing Rules
+
+### When Running Tests:
+- Use `tests/run-tests.sh` (don't create new runners)
+- Write results to `tests/results.txt` ONLY (temp file, gitignored)
+- Don't create separate result files per test
+- Don't create analysis files unless requested
+
+### Test Results Documentation:
+- Update existing `tests/TEST-RESULTS.md`
+- DON'T create: TEST-WINDSURF-RESULTS.md, TEST-ANALYSIS.md, etc.
+- ONE results file, updated with latest test run
+
+## Commands to Run
+
+### Before Every Commit:
+```bash
+saascode review              # Code review
+saascode parity              # Check frontend-backend consistency
+bash scripts/validate-structure.sh  # Validate no unwanted files
+```
+
+### After Major Changes:
+```bash
+saascode sweep              # Full audit + predeploy + review
+saascode report             # View logged issues
+```
+
+## General Guidelines
+
+### Stay Organized:
+- Follow existing patterns in codebase
+- Don't duplicate functionality
+- Clean up after yourself (remove temp files)
+- Use .gitignore for temp/generated files
+
+### Avoid Hallucinations:
+- Only reference files that actually exist
+- Verify paths before using them
+- Don't assume features exist - check first
+- Read existing code before suggesting changes
+
+### Communication:
+- Ask clarifying questions instead of guessing
+- Propose changes before making them
+- Explain reasoning for file creation
+- Confirm destructive actions
+
+## Summary
+
+**Golden Rule:** When in doubt, ask the user. Creating unwanted files is worse than asking too many questions.
+
+**Validation:** Run `bash scripts/validate-structure.sh` before committing to catch issues early.

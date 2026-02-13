@@ -1,46 +1,69 @@
 # Test Suite
 
-Universal test runner for saascode-kit — validates all commands against 16 real-world projects.
+Universal test runner for saascode-kit — validates all 11 commands against 16 real-world projects.
 
-## Files in Git
+**AI-Friendly:** Works with Claude Code, Cursor, or any AI agent with shell access.
+
+## Files
 
 | File | Purpose | In Git? |
 |------|---------|---------|
-| **TEST-SCORECARD.md** | Testing guide, rules, and project catalog | ✅ Yes |
-| **TEST-RESULTS.md** | Test results snapshot (proves coverage) | ✅ Yes |
-| **run-tests.sh** | Test runner script | ✅ Yes |
+| **run-tests.sh** | Test runner (11 commands × 16 projects) | ✅ Yes |
+| **TEST-RESULTS.md** | Latest test results & analysis | ✅ Yes |
+| **TEST-SCORECARD.md** | Testing guide & project catalog | ✅ Yes |
 | **README.md** | This file | ✅ Yes |
-| **projects/** | 16 test projects (22MB) | ❌ No (.gitignore) |
-| **results.txt** | Temporary test results | ❌ No (.gitignore) |
+| **.gitignore** | Excludes test fixtures | ✅ Yes |
+| **projects/** | 16 test projects (22MB) | ❌ No |
+| **results.txt** | Temporary results | ❌ No |
 
 ## Running Tests
 
-### Option 1: Use Your Own Projects
+### Full Test Suite (All 16 Projects)
 
-The test runner works with any project. Just point it at your codebase:
+```bash
+bash tests/run-tests.sh
+```
+
+Tests all 11 commands:
+- `init`, `claude`, `review`, `parity`, `check-file`
+- `audit`, `predeploy`, `sweep`, `report`
+- `cloak`, `uncloak`
+
+### Single Project Test
+
+```bash
+bash tests/run-tests.sh 03-py-django
+```
+
+### Test Your Own Project
 
 ```bash
 cd your-project
 bash /path/to/saascode-kit/tests/run-tests.sh .
 ```
 
-### Option 2: Download Test Fixtures
+## Test Fixtures
 
-Test fixtures (16 projects, 22MB) are available separately to avoid bloating the git repo.
+Test fixtures (16 projects, 22MB) are excluded from git to avoid bloat. You can:
 
-**Coming soon:** Download link for test-fixtures.zip
+1. **Use your own projects** — the test runner works with any codebase
+2. **Download fixtures separately** — (link coming soon)
+3. **Skip testing** — regular users don't need to run tests
 
-For now, you can create minimal test projects yourself following **TEST-SCORECARD.md**.
+## Latest Results (see TEST-RESULTS.md)
 
-### Option 3: Skip Testing
+- **337/352 (95.7%)** — Grade A+
+- **16 projects** — TS, Python, Java, Go, JS, PHP, Rust, C, Ruby, Kotlin, HTML
+- **11 commands** tested per project
+- **Zero crashes** across 176 test executions
+- **100% cloak/uncloak success**
 
-The test suite is for contributors/maintainers. Regular users don't need to run tests — just use saascode-kit directly in your projects!
+## For AI Agents (Claude, Cursor, etc.)
 
-## Test Coverage (Last Run: Feb 13, 2026)
+This test suite is designed to work with AI coding assistants:
 
-- **16 projects** — TypeScript, Python, Java, Go, JavaScript, PHP, Rust, C, Ruby, Kotlin, HTML
-- **9 commands** per project — init, claude, review, parity, check-file, audit, predeploy, sweep, report
-- **144 total executions** (16 projects × 9 commands)
-- **281/288 score (97.6%)** — Grade A+ 🚀
+- ✅ **Claude Code** — Full shell access, runs all tests
+- ✅ **Cursor** — Auto mode tested, all commands work
+- ✅ **Other AIs** — Any agent with bash/shell access can run tests
 
-See **TEST-RESULTS.md** for complete breakdown.
+See **TEST-SCORECARD.md** for token-efficient testing rules ("one proof is enough").

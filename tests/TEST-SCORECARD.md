@@ -77,6 +77,33 @@ Test projects in this order to maximize early bug discovery:
 | Command shows wrong language detection | **BUG** | Fix in ast-review.sh dispatcher |
 | "AST review not available for Go" | **EXPECTED** | Score as SKIP (1 point) |
 | "SKIP: npm not found" during audit | **EXPECTED** | Score as SKIP (1 point) |
+
+### Rule 6: File Creation & Organization (CRITICAL for AI Agents)
+
+**❌ DO NOT CREATE:**
+- Extra documentation files (TEMP-*.md, ANALYSIS-*.md, DEBUG-*.md, etc.)
+- Duplicate test result files (TEST-CURSOR-RESULTS.md, etc. — use existing TEST-RESULTS.md)
+- Temporary analysis files in project root
+- Log files outside of tests/.archive/
+- Any file not explicitly requested by user
+
+**✅ UPDATE EXISTING FILES ONLY:**
+- Update `tests/TEST-RESULTS.md` with new test run data
+- Update `tests/results.txt` (temp file, will be gitignored)
+- Use `tests/run-tests.sh` (don't create new test runners)
+
+**🔍 Validation:**
+```bash
+bash scripts/validate-structure.sh  # Run before committing to catch unwanted files
+```
+
+**Why this matters:**
+- Prevents file bloat (we had 11 files, now have 5 clean files)
+- Keeps git history clean
+- Follows "single source of truth" principle
+- Makes codebase navigable for users
+
+**If in doubt:** Ask user before creating ANY new file.
 | Review finds 0 issues on clean code | **EXPECTED** | Score as PASS (2 points) |
 | Predeploy skips build (no build tool) | **EXPECTED** | Score as SKIP (1 point) |
 

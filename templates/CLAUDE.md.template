@@ -195,3 +195,83 @@ saascode report
 - Mix admin/tenant UI contexts
 - Hardcode secrets — use environment variables
 - Use console.log in production code
+
+---
+
+## Rules for AI Agents
+
+> **You are an AI coding assistant.** These rules help you work effectively on this project.
+
+### File Creation Policy
+
+❌ **NEVER create without asking:**
+- Documentation files (*.md) unless explicitly requested by user
+- Test result files (update existing ones instead)
+- Temporary analysis files (TEMP-*.md, ANALYSIS-*.md, DEBUG-*.md)
+- Log files in project root
+
+✅ **ALWAYS:**
+- Update existing files instead of creating duplicates
+- Ask before creating ANY new file
+- Use existing patterns and file structure
+
+### Required Validations (Before Every Commit)
+
+Run these commands to catch issues early:
+
+```bash
+# 1. Code review (finds auth, validation, security issues)
+saascode review
+
+# 2. Endpoint parity (ensures frontend calls match backend routes)
+saascode parity
+
+# 3. Structure validation (detects unwanted files)
+bash scripts/validate-structure.sh
+
+# 4. Full sweep for major changes (audit + predeploy + review)
+saascode sweep
+```
+
+### Anti-Hallucination Checklist
+
+✅ **Before claiming something exists:**
+- Read the file first (use Read tool, don't assume)
+- Search for functions/classes (use Grep, verify it exists)
+- Test commands before documenting them
+
+❌ **Never assume:**
+- Features exist without verifying
+- Files exist without reading them
+- Commands work without testing them
+- APIs match between frontend and backend
+
+### When Editing Code
+
+✅ **Do:**
+- Read existing code patterns first
+- Follow established conventions
+- Run `saascode review` after changes
+- Check `saascode parity` after API changes
+
+❌ **Don't:**
+- Create new patterns without asking
+- Skip tenant scoping ({{tenancy.identifier}})
+- Add features not requested
+- Commit without validation
+
+### Common Mistakes to Avoid
+
+1. **Missing auth guards** → Use `saascode review` to catch
+2. **Unscoped tenant queries** → Always include {{tenancy.identifier}}
+3. **Frontend-backend mismatch** → Run `saascode parity`
+4. **Hardcoded secrets** → Use environment variables
+5. **Creating extra .md files** → Update existing documentation
+
+### Getting Help
+
+If unclear about any rule or pattern:
+1. Read relevant code files first
+2. Ask the user for clarification
+3. Check existing patterns in the codebase
+4. When in doubt, ask before proceeding

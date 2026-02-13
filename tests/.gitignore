@@ -3,6 +3,13 @@ projects/
 
 # Temporary test results
 results.txt
+cursor-results.txt
 
-# You can download test fixtures from releases if needed
-# Or create your own minimal test projects
+# Archive of old test files
+.archive/
+
+# Temp output files
+*.log
+
+# Download test fixtures from releases if needed
+# Or use your own projects for testing

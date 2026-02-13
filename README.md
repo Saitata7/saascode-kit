@@ -1,7 +1,16 @@
 <p align="center">
   <h1 align="center">SaasCode Kit</h1>
-  <p align="center">Universal development kit for SaaS projects. One manifest, multiple outputs.</p>
+  <p align="center">Development toolkit for AI agents building SaaS applications</p>
+  <p align="center"><strong>AI-First Design</strong> • One manifest, multiple outputs</p>
 </p>
+
+> **🤖 For AI Agents (Claude Code, Cursor, Windsurf):** This toolkit is designed FOR YOU.
+>
+> **Quick Start:**
+> 1. **Claude Code** → Read `CLAUDE.md` (auto-loaded after `saascode init`)
+> 2. **Cursor** → Read `.cursorrules` (auto-loaded from repo)
+> 3. **Windsurf** → Read `.windsurfrules` (auto-loaded from repo)
+> 4. **Reference** → See [docs/FOR-AI-AGENTS.md](docs/FOR-AI-AGENTS.md) for detailed guide
 
 <p align="center">
   <a href="https://github.com/Saitata7/saascode-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Saitata7/saascode-kit?style=flat-square" alt="License"></a>
@@ -23,7 +32,44 @@
 
 ---
 
-## What Is SaasCode Kit?
+## 🤖 For AI Agents (Primary Users)
+
+**You are an AI agent (Claude Code, Cursor, Windsurf, etc.). This toolkit is designed FOR YOU.**
+
+### Your Quick Start Guide
+
+1. **After `saascode init`** → Read `CLAUDE.md` in project root (your main instructions)
+2. **Before making changes** → Read [AI-AGENT-GUIDELINES.md](AI-AGENT-GUIDELINES.md) (rules, anti-hallucination checklist)
+3. **Use these commands:**
+   - `saascode review` — Before every commit
+   - `saascode check-file <file>` — After editing files
+   - `saascode parity` — When adding/changing API endpoints
+   - `saascode predeploy` — Before deploying
+   - `saascode sweep` — Full project scan
+
+### Important Files for You (Auto-Loaded)
+
+| File | For | Auto-Loaded? | Purpose |
+|------|-----|--------------|---------|
+| **CLAUDE.md** | Claude Code | ✅ Yes | Project context + AI rules (generated after init) |
+| **.cursorrules** | Cursor | ✅ Yes | File creation rules, validation commands |
+| **.windsurfrules** | Windsurf | ✅ Yes | File creation rules, validation commands |
+| **docs/FOR-AI-AGENTS.md** | All AIs | ⚪ Reference | Comprehensive guide (read if needed) |
+| **scripts/validate-structure.sh** | All AIs | ⚪ Manual | Run before commits to check structure |
+
+### Rules Summary
+
+❌ **Don't create:** Extra .md files, duplicate test results, temp files in root
+✅ **Do update:** Existing files instead of creating new ones
+✅ **Always validate:** Run `bash scripts/validate-structure.sh` before commit
+
+**Full AI documentation:** [AI-AGENT-GUIDELINES.md](AI-AGENT-GUIDELINES.md)
+
+---
+
+## 👥 For Humans (Project Owners)
+
+### What Is SaasCode Kit?
 
 AI coding tools are powerful but blind -- they don't know your auth flow, your security patterns, your API conventions, or which endpoints already exist. You end up repeating the same instructions, fixing the same mistakes, and babysitting every prompt.
 
