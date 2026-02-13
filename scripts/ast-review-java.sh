@@ -159,13 +159,13 @@ check_missing_valid() {
   local FILE="$1"
   local REL="$2"
 
-  grep -n '@RequestBody' "$FILE" 2>/dev/null | while IFS=: read -r LINE_NUM CONTENT; do
+  while IFS=: read -r LINE_NUM CONTENT; do
     if ! echo "$CONTENT" | grep -q '@Valid'; then
       add_finding "$REL" "$LINE_NUM" "WARNING" "80" \
         "@RequestBody parameter missing @Valid annotation — input not validated" \
         "Add @Valid before @RequestBody: methodName(@Valid @RequestBody Dto dto)"
     fi
-  done
+  done < <(grep -n '@RequestBody' "$FILE" 2>/dev/null || true)
 }
 
 # ── Check: Empty catch blocks ──
@@ -174,7 +174,11 @@ check_empty_catch() {
   local REL="$2"
 
   # Use awk state machine to find catch blocks with empty or pass-only bodies
-  awk -v rel="$REL" '
+  while read -r CATCH_LINE; do
+    add_finding "$REL" "$CATCH_LINE" "WARNING" "85" \
+      "Empty catch block silently swallows exception" \
+      "Add logging (logger.error), re-throw, or add a comment explaining why"
+  done < <(awk -v rel="$REL" '
     /catch\s*\(/ {
       catch_line = NR
       brace_count = 0
@@ -204,11 +208,7 @@ check_empty_catch() {
         in_catch = 0
       }
     }
-  ' "$FILE" | while read -r CATCH_LINE; do
-    add_finding "$REL" "$CATCH_LINE" "WARNING" "85" \
-      "Empty catch block silently swallows exception" \
-      "Add logging (logger.error), re-throw, or add a comment explaining why"
-  done
+  ' "$FILE" || true)
 }
 
 # ── Check: System.out.println in production ──
@@ -228,11 +228,11 @@ check_sysout() {
       "$COUNT System.out.println/print statements found in production code" \
       "Replace with SLF4J logger: private static final Logger log = LoggerFactory.getLogger(ClassName.class)"
   elif [ "$COUNT" -gt 0 ]; then
-    echo "$MATCHES" | while IFS=: read -r LINE_NUM CONTENT; do
+    while IFS=: read -r LINE_NUM CONTENT; do
       add_finding "$REL" "$LINE_NUM" "WARNING" "75" \
         "System.out.println in production code" \
         "Replace with logger.info() or logger.debug()"
-    done
+    done < <(echo "$MATCHES")
   fi
 }
 
@@ -242,18 +242,18 @@ check_sql_injection() {
   local REL="$2"
 
   # Pattern: createQuery/execute with string concatenation
-  grep -n -E '(createQuery|createNativeQuery|execute|executeQuery|executeUpdate|prepareStatement)\s*\(\s*"[^"]*"\s*\+' "$FILE" 2>/dev/null | while IFS=: read -r LINE_NUM CONTENT; do
+  while IFS=: read -r LINE_NUM CONTENT; do
     add_finding "$REL" "$LINE_NUM" "CRITICAL" "90" \
       "SQL injection: string concatenation in query construction" \
       "Use parameterized queries: createQuery(\"SELECT u FROM User u WHERE u.id = :id\").setParameter(\"id\", id)"
-  done
+  done < <(grep -n -E '(createQuery|createNativeQuery|execute|executeQuery|executeUpdate|prepareStatement)\s*\(\s*"[^"]*"\s*\+' "$FILE" 2>/dev/null || true)
 
   # Pattern: String.format in query
-  grep -n -E '(createQuery|execute)\s*\(\s*String\.format' "$FILE" 2>/dev/null | while IFS=: read -r LINE_NUM CONTENT; do
+  while IFS=: read -r LINE_NUM CONTENT; do
     add_finding "$REL" "$LINE_NUM" "CRITICAL" "90" \
       "SQL injection: String.format used to build query" \
       "Use parameterized queries instead of String.format"
-  done
+  done < <(grep -n -E '(createQuery|execute)\s*\(\s*String\.format' "$FILE" 2>/dev/null || true)
 }
 
 # ── Check: Hardcoded secrets ──
@@ -262,29 +262,25 @@ check_secrets() {
   local REL="$2"
 
   # Skip lines with @Value or System.getenv
-  grep -n -E '(sk_live_|sk_test_|pk_live_|pk_test_|api[_-]?key|apikey|secret[_-]?key|auth[_-]?token|access[_-]?token)\s*=\s*"[^"]{8,}"' "$FILE" 2>/dev/null \
-    | grep -v '@Value\|System\.getenv\|getProperty' \
-    | while IFS=: read -r LINE_NUM CONTENT; do
-      add_finding "$REL" "$LINE_NUM" "CRITICAL" "90" \
-        "Hardcoded secret detected in source" \
-        "Move to application.properties with @Value or use environment variables"
-    done
+  while IFS=: read -r LINE_NUM CONTENT; do
+    add_finding "$REL" "$LINE_NUM" "CRITICAL" "90" \
+      "Hardcoded secret detected in source" \
+      "Move to application.properties with @Value or use environment variables"
+  done < <(grep -n -E '(sk_live_|sk_test_|pk_live_|pk_test_|api[_-]?key|apikey|secret[_-]?key|auth[_-]?token|access[_-]?token)\s*=\s*"[^"]{8,}"' "$FILE" 2>/dev/null | grep -v '@Value\|System\.getenv\|getProperty' || true)
 
   # AWS keys
-  grep -n 'AKIA[0-9A-Z]\{16\}' "$FILE" 2>/dev/null | while IFS=: read -r LINE_NUM CONTENT; do
+  while IFS=: read -r LINE_NUM CONTENT; do
     add_finding "$REL" "$LINE_NUM" "CRITICAL" "95" \
       "AWS access key hardcoded in source" \
       "Use AWS SDK credential chain or environment variables"
-  done
+  done < <(grep -n 'AKIA[0-9A-Z]\{16\}' "$FILE" 2>/dev/null || true)
 
   # Bearer tokens
-  grep -n 'Bearer [A-Za-z0-9_\.\-]\{20,\}' "$FILE" 2>/dev/null \
-    | grep -v '//\|/\*\|\*' \
-    | while IFS=: read -r LINE_NUM CONTENT; do
-      add_finding "$REL" "$LINE_NUM" "CRITICAL" "85" \
-        "Hardcoded Bearer token in source" \
-        "Move token to secure configuration or environment variable"
-    done
+  while IFS=: read -r LINE_NUM CONTENT; do
+    add_finding "$REL" "$LINE_NUM" "CRITICAL" "85" \
+      "Hardcoded Bearer token in source" \
+      "Move token to secure configuration or environment variable"
+  done < <(grep -n 'Bearer [A-Za-z0-9_\.\-]\{20,\}' "$FILE" 2>/dev/null | grep -v '//\|/\*\|\*' || true)
 }
 
 # ── Main ──
