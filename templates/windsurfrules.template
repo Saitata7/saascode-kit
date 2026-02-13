@@ -76,3 +76,5 @@ After changes, verify:
 2. Backend builds successfully
 3. Frontend builds successfully
 4. Endpoint parity: every frontend call has a backend match
+5. `saascode sweep` — full sweep (audit + predeploy + review)
+6. `saascode report` — check for detected issues

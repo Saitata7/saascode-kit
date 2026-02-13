@@ -176,8 +176,14 @@ npm run typecheck
 npm --prefix {{paths.backend}} run build 2>/dev/null || npm run build
 npm --prefix {{paths.frontend}} run build 2>/dev/null || true
 
-# Endpoint parity (if using saascode-kit)
+# Endpoint parity
 saascode parity
+
+# Full sweep (audit + predeploy + review in one command)
+saascode sweep
+
+# View detected issues
+saascode report
 ```
 
 ## Do NOT

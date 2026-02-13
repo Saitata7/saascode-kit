@@ -81,7 +81,13 @@ The kit should get smarter from your project's actual bugs, not just generic bes
 
 Know what the AI changed, when, and why. Essential for teams, compliance, and debugging AI-generated code.
 
-**How:** Intent tracking logs every AI edit with context -- file path, what was changed, what the validator found. View with `saascode intent` or `saascode intent --summary`.
+**How:** Intent tracking logs every AI edit with context -- file path, what was changed, what the validator found. View with `saascode intent` or `saascode intent --summary`. Issue report logging auto-captures every detected problem to `.saascode/logs/` -- view with `saascode report`, aggregate with `--summary`, or file to GitHub with `--github`.
+
+### 10. Stealth Mode
+
+Some teams don't want to reveal their tooling. Cloak mode removes every trace of saascode-kit and AI tools from the repo -- renames directories, strips branding, stashes config files. Nobody can tell you're using it.
+
+**How:** `saascode cloak` renames `.saascode/` to a neutral name (default `.devkit`), strips all "saascode" references from scripts/hooks/CI, and stashes `.claude/`, `.cursor/`, `.cursorrules`, `.windsurfrules`, `CLAUDE.md`. Everything still works. `saascode uncloak` reverses it.
 
 ---
 
@@ -91,6 +97,7 @@ Know what the AI changed, when, and why. Essential for teams, compliance, and de
 
 - **Vibe coding sessions** -- `/build phone-numbers` generates a complete feature (schema, service, controller, API client, page) following your project's patterns
 - **One-person code review** -- `saascode review` gives you automated security and quality checks: auth patterns, data scoping, secrets -- with exact line numbers
+- **Full sweep** -- `saascode sweep` runs audit + pre-deploy + code review in one command with a combined summary
 - **Quick fixes without waste** -- "fix the div error on line 12" costs minimal tokens because the AI knows when NOT to load context
 
 ### Growing Teams
@@ -102,7 +109,8 @@ Know what the AI changed, when, and why. Essential for teams, compliance, and de
 ### Specific Workflows
 
 - **Adding features** -- `/recipe crud` provides fill-in-the-blank templates. Fill in the model name, AI builds all layers
-- **Pre-deployment** -- `saascode predeploy` runs build, TypeScript, endpoint parity, and security checks in one command
+- **Pre-deployment** -- `saascode predeploy` runs build, TypeScript, endpoint parity, and security checks in one command. Or use `saascode sweep` for the full pipeline including review
+- **Issue tracking** -- `saascode report` shows all issues detected across sessions. `saascode report --github` files them as a GitHub Issue with checkbox list
 - **Debugging** -- `/debug` classifies the bug, traces the full request path (frontend -> API client -> controller -> service -> DB), and proposes a fix
 - **Database migrations** -- `/migrate plan` analyzes schema changes, warns about breaking changes, generates the migration
 - **PR reviews** -- `/review 42` fetches the diff, runs AST analysis, cross-references the project map, and outputs findings with confidence scores

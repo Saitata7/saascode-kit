@@ -67,6 +67,9 @@ SaasCode Kit solves this. You fill out one `manifest.yaml` with your project's s
 | Feature | What It Does |
 |---------|-------------|
 | **Intent Tracking** | Logs every AI edit with context -- what was changed, which file, what the check-file validator found. Full audit trail |
+| **Issue Report Logging** | Every detected issue (from check-file, audit, pre-deploy) is auto-logged to `.saascode/logs/`. View with `saascode report`, or file to GitHub with `--github` |
+| **Full Sweep** | One command runs audit + pre-deploy + code review in sequence with a combined pass/fail summary |
+| **Stealth Mode (Cloak)** | Removes all traces of saascode-kit and AI tools from your repo. Renames directories, strips branding, stashes `.claude/`, `.cursor/`, `.cursorrules`, `.windsurfrules`. Nobody can tell you're using it |
 | **Self-Improving Rules** | `/learn` skill captures real bugs found during development and feeds them back into the kit's patterns |
 | **Project Snapshot** | Auto-generates `project-map.md` from your actual codebase -- models, endpoints, pages, components |
 
@@ -137,9 +140,19 @@ saascode review --ai               # AI-powered review (LLM)
 saascode check-file <path>         # Single-file validator (17 checks)
 
 # Analysis & Deployment
+saascode sweep                     # Run ALL checks (audit + predeploy + review)
 saascode audit                     # Full security + quality audit
 saascode parity                    # Frontend-backend endpoint comparison
 saascode predeploy                 # Pre-deployment gates
+
+# Issue Tracking
+saascode report                    # View detected issues
+saascode report --github           # File issues to GitHub
+saascode report --summary          # Issue counts by category
+
+# Stealth Mode
+saascode cloak                     # Hide all kit + AI tool traces
+saascode uncloak                   # Reverse stealth mode
 
 # Setup & Sync
 saascode init                      # Full interactive setup

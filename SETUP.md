@@ -144,6 +144,10 @@ source ~/.zshrc
 
 | Command | What It Does |
 |---------|-------------|
+| `saascode sweep` | Run ALL checks in sequence (audit + predeploy + review) |
+| `saascode sweep --ai` | Full sweep with AI-powered review |
+| `saascode sweep --skip-review` | Skip the review step |
+| `saascode sweep --skip-predeploy` | Skip the predeploy step |
 | `saascode audit` | Full security + quality audit |
 | `saascode parity` | Frontend-backend endpoint comparison |
 | `saascode snapshot` | Regenerate `project-map.md` from codebase |
@@ -154,8 +158,26 @@ source ~/.zshrc
 |---------|-------------|
 | `saascode intent` | View AI edit intent log |
 | `saascode intent --summary` | Session summaries (files, pass/warn/blocked) |
+| `saascode report` | View detected issues (today by default) |
+| `saascode report --days N` | Show issues from last N days |
+| `saascode report --severity critical` | Filter by severity (critical or warning) |
+| `saascode report --source check-file` | Filter by source (check-file, full-audit, pre-deploy) |
+| `saascode report --summary` | Aggregate issue counts by category + severity |
+| `saascode report --json` | Raw JSONL output |
+| `saascode report --github` | Create a GitHub Issue from collected issues |
+| `saascode report --clear` | Delete issue logs older than 30 days |
 | `saascode predeploy` | Pre-deployment gates |
 | `saascode checklist [name]` | Show a checklist (feature-complete, security-review, deploy-ready) |
+
+### Stealth Mode
+
+| Command | What It Does |
+|---------|-------------|
+| `saascode cloak` | Hide all saascode-kit + AI tool traces from repo (default: `.devkit`) |
+| `saascode cloak --name .tools` | Use a custom directory name instead of `.devkit` |
+| `saascode uncloak` | Reverse stealth mode, restore all files to original locations |
+
+Cloak renames `.saascode/` to your chosen name, strips all branding from scripts/hooks/CI, stashes `.claude/`, `.cursor/`, `.cursorrules`, `.windsurfrules`, `CLAUDE.md` inside the cloaked directory, and cleans `.gitignore` of tool mentions. Uncloak reverses everything. After uncloaking, run `saascode claude`/`cursor` to restore full branding.
 
 ### Info
 
@@ -228,7 +250,7 @@ saascode-kit/
 │   └── pre-push                   #   TypeScript check, build, security audit
 │
 ├── scripts/                       # Shell + TypeScript scripts
-│   ├── lib.sh                     #   Shared library (manifest parsing, templates)
+│   ├── lib.sh                     #   Shared library (manifest parsing, templates, log_issue)
 │   ├── saascode.sh                #   CLI dispatcher
 │   ├── check-file.sh              #   Single-file validator (17 checks)
 │   ├── ai-review.sh               #   AI-powered review (multi-provider)
@@ -239,7 +261,10 @@ saascode-kit/
 │   ├── full-audit.sh              #   All security + quality checks
 │   ├── pre-deploy.sh              #   Deployment readiness verification
 │   ├── intent-log.sh              #   PostToolUse hook (logs AI edits)
-│   └── intent-cli.sh              #   Intent log viewer
+│   ├── intent-cli.sh              #   Intent log viewer
+│   ├── report-cli.sh              #   Issue report viewer + GitHub issue creator
+│   ├── sweep-cli.sh               #   Full sweep (audit + predeploy + review)
+│   └── cloak-cli.sh               #   Stealth mode (cloak/uncloak)
 │
 ├── ci/                            # CI/CD configs
 │   └── github-action.yml          #   GitHub Actions pipeline

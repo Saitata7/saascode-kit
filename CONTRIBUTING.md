@@ -50,6 +50,9 @@ There's no automated test suite yet (contributions welcome!). For now:
 - Test individual IDE commands (`saascode claude`, `saascode cursor`, `saascode windsurf`)
 - Verify template placeholders are replaced correctly
 - Check that `saascode update` syncs without errors
+- Test `saascode sweep` runs all three steps (audit, predeploy, review)
+- Test `saascode report` after running checks that produce issues
+- Test `saascode cloak` / `saascode uncloak` cycle (verify all files restore correctly)
 - For npm changes: `npm pack --dry-run` to verify published file list
 
 ## Code of Conduct
