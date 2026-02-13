@@ -318,7 +318,12 @@ cmd_update() {
       cp "$f" "$ROOT/.saascode/scripts/$(basename "$f")"
       UPDATED=$((UPDATED + 1))
     done
-    echo "  ${GREEN}✓${NC} Scripts: $(ls "$KIT"/scripts/*.sh "$KIT"/scripts/*.ts 2>/dev/null | wc -l | tr -d ' ') files → .saascode/scripts/"
+    for f in "$KIT"/scripts/*.py; do
+      [ -f "$f" ] || continue
+      cp "$f" "$ROOT/.saascode/scripts/$(basename "$f")"
+      UPDATED=$((UPDATED + 1))
+    done
+    echo "  ${GREEN}✓${NC} Scripts: $(ls "$KIT"/scripts/*.sh "$KIT"/scripts/*.ts "$KIT"/scripts/*.py 2>/dev/null | wc -l | tr -d ' ') files → .saascode/scripts/"
   fi
 
   # Checklists → .saascode/checklists/

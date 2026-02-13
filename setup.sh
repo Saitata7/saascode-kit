@@ -291,6 +291,15 @@ if [ "$INSTALL_SCRIPTS" = true ]; then
     echo "  ${GREEN}✓${NC} .saascode/scripts/$SCRIPT_NAME"
     INSTALLED=$((INSTALLED + 1))
   done
+
+  # Also copy .py scripts (e.g. ast-review-python.py)
+  for SCRIPT in "$KIT_DIR"/scripts/*.py; do
+    [ -f "$SCRIPT" ] || continue
+    SCRIPT_NAME=$(basename "$SCRIPT")
+    cp "$SCRIPT" "$TARGET/.saascode/scripts/$SCRIPT_NAME"
+    echo "  ${GREEN}✓${NC} .saascode/scripts/$SCRIPT_NAME"
+    INSTALLED=$((INSTALLED + 1))
+  done
 fi
 
 # ─── 7. Checklists (inside .saascode/) ───
