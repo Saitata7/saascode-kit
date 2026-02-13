@@ -118,7 +118,7 @@ if [ "$DO_CLEAR" = true ]; then
 fi
 
 # ─── Collect log files for the date range ───
-LOG_FILES=""
+LOG_FILES=()
 for i in $(seq 0 $((DAYS - 1))); do
   if date -v-${i}d +"%Y-%m-%d" >/dev/null 2>&1; then
     # macOS date
@@ -129,11 +129,11 @@ for i in $(seq 0 $((DAYS - 1))); do
   fi
   FILE="$LOG_DIR/issues-${DAY}.jsonl"
   if [ -f "$FILE" ]; then
-    LOG_FILES="$LOG_FILES $FILE"
+    LOG_FILES+=("$FILE")
   fi
 done
 
-if [ -z "$LOG_FILES" ]; then
+if [ ${#LOG_FILES[@]} -eq 0 ]; then
   echo -e "${YELLOW}No issue logs found for the last $DAYS day(s).${NC}"
   echo ""
   echo -e "${DIM}Logs are created when check-file, full-audit, or pre-deploy detect issues.${NC}"
@@ -143,7 +143,7 @@ fi
 
 # ─── Read and filter entries ───
 ALL_ENTRIES=""
-for F in $LOG_FILES; do
+for F in "${LOG_FILES[@]}"; do
   ALL_ENTRIES="${ALL_ENTRIES}$(cat "$F")
 "
 done

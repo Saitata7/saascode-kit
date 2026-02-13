@@ -45,16 +45,16 @@ gate() {
   local NAME="$1"
   local STATUS="$2" # pass, fail, warn, skip
   if [ "$STATUS" = "pass" ]; then
-    echo "  ${GREEN}✓ $NAME${NC}"
+    echo -e "  ${GREEN}✓ $NAME${NC}"
     GATES_PASSED=$((GATES_PASSED + 1))
   elif [ "$STATUS" = "warn" ]; then
-    echo "  ${YELLOW}⚠ $NAME${NC}"
+    echo -e "  ${YELLOW}⚠ $NAME${NC}"
     GATES_WARNED=$((GATES_WARNED + 1))
     log_issue "pre-deploy" "warning" "$NAME" "Gate warning: $NAME" "" "" ""
   elif [ "$STATUS" = "skip" ]; then
-    echo "  ${YELLOW}— $NAME${NC}"
+    echo -e "  ${YELLOW}— $NAME${NC}"
   else
-    echo "  ${RED}✗ $NAME${NC}"
+    echo -e "  ${RED}✗ $NAME${NC}"
     GATES_FAILED=$((GATES_FAILED + 1))
     log_issue "pre-deploy" "critical" "$NAME" "Gate failed: $NAME" "" "" ""
   fi
@@ -126,7 +126,8 @@ if [ -n "$AUDIT_CMD" ]; then
   if [ $AUDIT_EXIT -eq 0 ]; then
     gate "No critical vulnerabilities" "pass"
   else
-    CRITICAL_COUNT=$(echo "$AUDIT_OUTPUT" | grep -ic "critical" 2>/dev/null || echo "0")
+    CRITICAL_COUNT=$(echo "$AUDIT_OUTPUT" | grep -ic "critical" 2>/dev/null) || true
+    CRITICAL_COUNT="${CRITICAL_COUNT:-0}"
     if [ "$CRITICAL_COUNT" -gt 0 ]; then
       gate "Critical vulnerabilities found" "fail"
     else
@@ -194,9 +195,9 @@ TOTAL=$((GATES_PASSED + GATES_FAILED + GATES_WARNED))
 printf "\n═══════════════════════════════════════════════\n"
 echo "  Deployment Readiness"
 echo "═══════════════════════════════════════════════"
-echo "  ${GREEN}Passed:   $GATES_PASSED / $TOTAL${NC}"
-echo "  ${YELLOW}Warnings: $GATES_WARNED${NC}"
-echo "  ${RED}Failed:   $GATES_FAILED${NC}"
+echo -e "  ${GREEN}Passed:   $GATES_PASSED / $TOTAL${NC}"
+echo -e "  ${YELLOW}Warnings: $GATES_WARNED${NC}"
+echo -e "  ${RED}Failed:   $GATES_FAILED${NC}"
 
 if [ $GATES_FAILED -gt 0 ]; then
   printf "\n${RED}  DEPLOY: BLOCKED${NC}\n"

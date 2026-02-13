@@ -371,6 +371,10 @@ do_uncloak() {
   # Read state
   CLOAKED_BASE=$(grep '^cloak_base=' "$STATE_FILE" | cut -d= -f2)
 
+  # Escape dot in CLOAKED_DIR for safe use in sed regex patterns
+  # .devkit → \.devkit (so '.' matches literal dot, not any character)
+  local ESCD="${CLOAKED_DIR/./\\.}"
+
   local CHANGED=0
 
   # ─── 1. Update scripts — reverse replacements ───
@@ -380,8 +384,8 @@ do_uncloak() {
       # Skip cloak-cli.sh — it has hardcoded refs that must stay intact
       [ "$(basename "$F")" = "cloak-cli.sh" ] && continue
       sed -i.bak \
-        -e "s|$CLOAKED_DIR/|.saascode/|g" \
-        -e "s|$CLOAKED_DIR|.saascode|g" \
+        -e "s|${ESCD}/|.saascode/|g" \
+        -e "s|${ESCD}|.saascode|g" \
         -e "s|${CLOAKED_BASE}/|saascode-kit/|g" \
         -e "s|ci-checks\.yml|saascode.yml|g" \
         -e "s|${CLOAKED_BASE}|saascode|g" \
@@ -428,8 +432,8 @@ do_uncloak() {
   # ─── 4. Update .claude/settings.json ───
   if [ -f "$ROOT/.claude/settings.json" ]; then
     sed -i.bak \
-      -e "s|$CLOAKED_DIR/|.saascode/|g" \
-      -e "s|$CLOAKED_DIR|.saascode|g" \
+      -e "s|${ESCD}/|.saascode/|g" \
+      -e "s|${ESCD}|.saascode|g" \
       "$ROOT/.claude/settings.json"
     rm -f "$ROOT/.claude/settings.json.bak"
     echo "  ${GREEN}✓${NC} .claude/settings.json"
@@ -439,8 +443,8 @@ do_uncloak() {
   # ─── 5. Update .gitignore ───
   if [ -f "$ROOT/.gitignore" ]; then
     sed -i.bak \
-      -e "s|$CLOAKED_DIR/|.saascode/|g" \
-      -e "s|$CLOAKED_DIR|.saascode|g" \
+      -e "s|${ESCD}/|.saascode/|g" \
+      -e "s|${ESCD}|.saascode|g" \
       -e "s|${CLOAKED_BASE}/|saascode-kit/|g" \
       -e "s|${CLOAKED_BASE}|saascode|g" \
       "$ROOT/.gitignore"
@@ -453,8 +457,8 @@ do_uncloak() {
   for HOOK in pre-commit pre-push; do
     if [ -f "$ROOT/.git/hooks/$HOOK" ]; then
       sed -i.bak \
-        -e "s|$CLOAKED_DIR/|.saascode/|g" \
-        -e "s|$CLOAKED_DIR|.saascode|g" \
+        -e "s|${ESCD}/|.saascode/|g" \
+        -e "s|${ESCD}|.saascode|g" \
         -e "s|${CLOAKED_BASE}/|saascode-kit/|g" \
         -e "s|ci-checks\.yml|saascode.yml|g" \
         -e "s|${CLOAKED_BASE}|saascode|g" \
@@ -482,8 +486,8 @@ do_uncloak() {
   # but path references (.devkit → .saascode) must be corrected
   if [ -f "$ROOT/CLAUDE.md" ]; then
     sed -i.bak \
-      -e "s|$CLOAKED_DIR/|.saascode/|g" \
-      -e "s|$CLOAKED_DIR|.saascode|g" \
+      -e "s|${ESCD}/|.saascode/|g" \
+      -e "s|${ESCD}|.saascode|g" \
       -e "s|${CLOAKED_BASE}/|saascode-kit/|g" \
       -e "s|${CLOAKED_BASE}|saascode|g" \
       "$ROOT/CLAUDE.md"

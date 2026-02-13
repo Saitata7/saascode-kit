@@ -492,9 +492,9 @@ fi
 printf "\n═══════════════════════════════════════════════\n"
 echo "  Audit Summary"
 echo "═══════════════════════════════════════════════"
-echo "  ${RED}Critical: $CRITICAL${NC}"
-echo "  ${YELLOW}Warnings: $WARNINGS${NC}"
-echo "  ${GREEN}Passed:   $PASS${NC}"
+echo -e "  ${RED}Critical: $CRITICAL${NC}"
+echo -e "  ${YELLOW}Warnings: $WARNINGS${NC}"
+echo -e "  ${GREEN}Passed:   $PASS${NC}"
 TOTAL=$((CRITICAL + WARNINGS + PASS))
 echo "  Total checks: $TOTAL"
 

@@ -140,16 +140,8 @@ load_manifest_vars() {
   export TMPL_billing_webhooks="${M_billing_webhooks:-}"
   export TMPL_patterns_colors="${M_patterns_colors:-}"
 
-  # Dot-notation aliases used in templates
-  export "TMPL_auth.guard_pattern=$GUARD_PATTERN"
-  export "TMPL_auth.multi_tenant=${M_auth_multi_tenant:-}"
-  export "TMPL_tenancy.enabled=${M_tenancy_enabled:-}"
-  export "TMPL_billing.enabled=${M_billing_enabled:-}"
-  export "TMPL_ai.enabled=${M_ai_enabled:-}"
-  export "TMPL_paths.shared=$SHARED_PATH"
-  export "TMPL_billing.webhooks=${M_billing_webhooks:-}"
-  export "TMPL_patterns.colors=${M_patterns_colors:-}"
-  export "TMPL_stack.backend.framework=$BACKEND_FRAMEWORK"
+  # Also export with nested dots replaced by underscores for deeper keys
+  export TMPL_stack_backend_framework="$BACKEND_FRAMEWORK"
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -470,7 +462,8 @@ process_conditionals() {
     match($0, /\{\{#if_eq ([^ ]+) "([^"]*)"/, arr)
     if (RSTART > 0) {
       var = arr[1]; val = arr[2]
-      # Read variable from environment via ENVIRON
+      # Read variable from environment via ENVIRON (dots → underscores)
+      gsub(/\./, "_", var)
       actual = ENVIRON["TMPL_" var]
       if (actual == val) {
         # Keep block contents, remove the tag line
@@ -501,6 +494,8 @@ process_conditionals() {
     match($0, /\{\{#if ([a-zA-Z_.]+)/, arr)
     if (RSTART > 0) {
       var = arr[1]
+      # Dots → underscores for env var lookup
+      gsub(/\./, "_", var)
       actual = ENVIRON["TMPL_" var]
       if (actual != "" && actual != "false" && actual != "none" && actual != "False") {
         next
