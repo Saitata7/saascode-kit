@@ -198,9 +198,28 @@ detect_build_cmd() {
   PKG="$(detect_pkg_manager "$DIR")"
 
   case "$PKG" in
-    npm)      echo "npm --prefix $DIR run build" ;;
-    yarn)     echo "yarn --cwd $DIR build" ;;
-    pnpm)     echo "pnpm --dir $DIR run build" ;;
+    npm)
+      # Use --prefix only if the subdirectory has its own package.json (monorepo)
+      if [ "$DIR" != "." ] && [ -f "$DIR/package.json" ]; then
+        echo "npm --prefix $DIR run build"
+      else
+        echo "npm run build"
+      fi
+      ;;
+    yarn)
+      if [ "$DIR" != "." ] && [ -f "$DIR/package.json" ]; then
+        echo "yarn --cwd $DIR build"
+      else
+        echo "yarn build"
+      fi
+      ;;
+    pnpm)
+      if [ "$DIR" != "." ] && [ -f "$DIR/package.json" ]; then
+        echo "pnpm --dir $DIR run build"
+      else
+        echo "pnpm run build"
+      fi
+      ;;
     pip)
       if [ -f "$DIR/setup.py" ] || [ -f "$DIR/pyproject.toml" ]; then
         echo "python -m build --outdir $DIR/dist $DIR"
@@ -225,9 +244,27 @@ detect_test_cmd() {
   PKG="$(detect_pkg_manager "$DIR")"
 
   case "$PKG" in
-    npm)      echo "npm --prefix $DIR test" ;;
-    yarn)     echo "yarn --cwd $DIR test" ;;
-    pnpm)     echo "pnpm --dir $DIR test" ;;
+    npm)
+      if [ "$DIR" != "." ] && [ -f "$DIR/package.json" ]; then
+        echo "npm --prefix $DIR test"
+      else
+        echo "npm test"
+      fi
+      ;;
+    yarn)
+      if [ "$DIR" != "." ] && [ -f "$DIR/package.json" ]; then
+        echo "yarn --cwd $DIR test"
+      else
+        echo "yarn test"
+      fi
+      ;;
+    pnpm)
+      if [ "$DIR" != "." ] && [ -f "$DIR/package.json" ]; then
+        echo "pnpm --dir $DIR test"
+      else
+        echo "pnpm test"
+      fi
+      ;;
     pip)
       [ -f "$DIR/pytest.ini" ] || [ -f "$DIR/pyproject.toml" ] && echo "pytest $DIR" && return
       echo "python -m pytest $DIR"

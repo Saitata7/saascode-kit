@@ -27,7 +27,7 @@ The AI should produce correct, pattern-following code on the first try -- not af
 Code review shouldn't require expensive per-seat tools. Security checks (missing auth, unscoped queries, hardcoded secrets) can be automated.
 
 **How:** Two review engines:
-- **AST-based review** -- ts-morph parses every controller and service. Deterministic. Catches structural violations with exact line numbers and confidence scores
+- **AST-based review** -- ts-morph parses every controller and service. Deterministic. Catches structural violations with exact line numbers and confidence scores. Aggregates noisy warnings per file to keep findings actionable
 - **AI-powered review** -- LLM-based semantic analysis supporting 7 providers (Groq, OpenAI, Claude, Gemini, DeepSeek, Kimi K2, Qwen). Auto-detects from API keys. Catches logical issues that pattern matching can't
 
 Both are free. No per-seat pricing. No cloud dependency for pattern checks.
@@ -109,7 +109,7 @@ Some teams don't want to reveal their tooling. Cloak mode removes every trace of
 ### Specific Workflows
 
 - **Adding features** -- `/recipe crud` provides fill-in-the-blank templates. Fill in the model name, AI builds all layers
-- **Pre-deployment** -- `saascode predeploy` runs build, TypeScript, endpoint parity, and security checks in one command. Or use `saascode sweep` for the full pipeline including review
+- **Pre-deployment** -- `saascode predeploy` runs build, TypeScript, endpoint parity, and security checks in one command. Auto-detects monorepo vs single-package projects. Or use `saascode sweep` for the full pipeline including review
 - **Issue tracking** -- `saascode report` shows all issues detected across sessions. `saascode report --github` files them as a GitHub Issue with checkbox list
 - **Debugging** -- `/debug` classifies the bug, traces the full request path (frontend -> API client -> controller -> service -> DB), and proposes a fix
 - **Database migrations** -- `/migrate plan` analyzes schema changes, warns about breaking changes, generates the migration

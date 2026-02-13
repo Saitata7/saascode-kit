@@ -388,24 +388,53 @@ function checkEmptyCatchBlocks(sourceFile: SourceFile, findings: Finding[]): voi
   });
 }
 
+const CONSOLE_LOG_THRESHOLD = 3; // Aggregate if a file has more than this many
+
 function checkConsoleLog(sourceFile: SourceFile, findings: Finding[]): void {
   const filePath = sourceFile.getFilePath();
 
   if (filePath.includes('.spec.') || filePath.includes('.test.')) return;
 
+  const consoleCalls: { text: string; line: number }[] = [];
+
   sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(call => {
     const text = call.getExpression().getText();
     if (text === 'console.log' || text === 'console.debug') {
+      consoleCalls.push({ text, line: call.getStartLineNumber() });
+    }
+  });
+
+  if (consoleCalls.length === 0) return;
+
+  if (consoleCalls.length <= CONSOLE_LOG_THRESHOLD) {
+    // Few enough to report individually
+    for (const c of consoleCalls) {
       findings.push({
         file: relativePath(filePath),
-        line: call.getStartLineNumber(),
+        line: c.line,
         severity: 'WARNING',
         confidence: 80,
-        issue: `${text}() in production code`,
+        issue: `${c.text}() in production code`,
         fix: 'Use a proper logger instead, or remove',
       });
     }
-  });
+  } else {
+    // Aggregate into a single finding per file
+    const logCount = consoleCalls.filter(c => c.text === 'console.log').length;
+    const debugCount = consoleCalls.filter(c => c.text === 'console.debug').length;
+    const parts: string[] = [];
+    if (logCount > 0) parts.push(`${logCount} console.log`);
+    if (debugCount > 0) parts.push(`${debugCount} console.debug`);
+
+    findings.push({
+      file: relativePath(filePath),
+      line: consoleCalls[0].line,
+      severity: 'WARNING',
+      confidence: 80,
+      issue: `${consoleCalls.length} console statements (${parts.join(', ')})`,
+      fix: 'Use a proper logger instead, or remove',
+    });
+  }
 }
 
 function checkRawSql(sourceFile: SourceFile, findings: Finding[]): void {
@@ -571,6 +600,22 @@ function checkSwitchWithoutDefault(sourceFile: SourceFile, findings: Finding[]):
   });
 }
 
+// ─── Helpers ───
+
+/** Filter out kit/tooling files — only scan project source code */
+function isSourceFile(relativePath: string): boolean {
+  const skip = [
+    '.saascode/',
+    'saascode-kit/',
+    '.devkit/',
+    'node_modules/',
+    'dist/',
+    '.next/',
+    '.git/',
+  ];
+  return !skip.some(prefix => relativePath.startsWith(prefix));
+}
+
 // ─── Main ───
 
 async function main() {
@@ -600,11 +645,10 @@ async function main() {
 
   if (changedOnly) {
     try {
-      const diffBase = CONFIG.backendPath.replace(/\/$/, '');
       const diffFiles = execSync('git diff --name-only HEAD~1', { encoding: 'utf-8' })
         .trim()
         .split('\n')
-        .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
+        .filter(f => (f.endsWith('.ts') || f.endsWith('.tsx')) && isSourceFile(f))
         .map(f => path.join(PROJECT_ROOT, f));
 
       for (const file of diffFiles) {
@@ -616,7 +660,7 @@ async function main() {
           // File might not exist (deleted)
         }
       }
-      console.log(`  Scanning ${COLORS.green}${diffFiles.length}${COLORS.nc} changed files`);
+      console.log(`  Scanning ${COLORS.green}${diffFiles.length}${COLORS.nc} changed source files`);
     } catch {
       console.log(`  ${COLORS.yellow}Could not get git diff, scanning all files${COLORS.nc}`);
       addAllSourceFiles(project, backendSrc, frontendSrc);

@@ -134,6 +134,7 @@ source ~/.zshrc
 | Command | What It Does |
 |---------|-------------|
 | `saascode review` | AST-based code review using ts-morph |
+| `saascode review --changed-only` | Review only files changed in last commit (filters out kit/tooling files) |
 | `saascode review --ai` | AI-powered review (auto-detects provider from API key in .env) |
 | `saascode review --ai --provider X` | Use specific provider: groq, openai, claude, gemini, deepseek, kimi, qwen |
 | `saascode review --ai --model X` | Override default model for any provider |
@@ -166,7 +167,7 @@ source ~/.zshrc
 | `saascode report --json` | Raw JSONL output |
 | `saascode report --github` | Create a GitHub Issue from collected issues |
 | `saascode report --clear` | Delete issue logs older than 30 days |
-| `saascode predeploy` | Pre-deployment gates |
+| `saascode predeploy` | Pre-deployment gates (auto-detects monorepo vs single-package) |
 | `saascode checklist [name]` | Show a checklist (feature-complete, security-review, deploy-ready) |
 
 ### Stealth Mode

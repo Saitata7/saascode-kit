@@ -39,7 +39,7 @@ SaasCode Kit solves this. You fill out one `manifest.yaml` with your project's s
 
 | Feature | What It Does |
 |---------|-------------|
-| **AST-Based Code Review** | Parses your controllers and services with ts-morph. Catches missing auth guards, unscoped queries, empty catch blocks, hardcoded secrets -- with exact line numbers and confidence scores |
+| **AST-Based Code Review** | Parses your controllers and services with ts-morph. Catches missing auth guards, unscoped queries, empty catch blocks, hardcoded secrets -- with exact line numbers and confidence scores. Aggregates noisy warnings (e.g. console.log) per file to surface meaningful findings |
 | **AI-Powered Review** | LLM-based semantic code review using free-tier providers (Groq). Catches logical issues that pattern matching can't |
 | **Real-Time File Validation** | Claude Code hooks run after every AI edit (< 1 second). 17 check categories -- the AI self-corrects before you even review |
 | **Endpoint Parity Checker** | Compares frontend API client calls against backend controller routes. Catches 404s before runtime |
@@ -51,7 +51,7 @@ SaasCode Kit solves this. You fill out one `manifest.yaml` with your project's s
 | **Pre-Commit Hook** | Blocks secrets, .env files, merge conflict markers, debug statements, and oversized files before they enter git |
 | **Pre-Push Hook** | Runs TypeScript check, build verification, and security audit before code reaches the remote |
 | **CI/CD Pipeline** | GitHub Actions workflow: build, test, endpoint parity, and security checks on every PR |
-| **Pre-Deploy Gates** | Full deployment readiness verification -- build, types, tests, parity, security in one command |
+| **Pre-Deploy Gates** | Full deployment readiness verification -- build, types, tests, parity, security in one command. Auto-detects monorepo vs single-package projects |
 
 ### IDE Context & AI Skills
 
@@ -136,6 +136,7 @@ saascode windsurf                  # Install Windsurf config
 
 # Code Review
 saascode review                    # AST-based code review
+saascode review --changed-only     # Review only files changed in last commit
 saascode review --ai               # AI-powered review (LLM)
 saascode check-file <path>         # Single-file validator (17 checks)
 

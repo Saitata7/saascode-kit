@@ -53,6 +53,9 @@ There's no automated test suite yet (contributions welcome!). For now:
 - Test `saascode sweep` runs all three steps (audit, predeploy, review)
 - Test `saascode report` after running checks that produce issues
 - Test `saascode cloak` / `saascode uncloak` cycle (verify all files restore correctly)
+- Test `saascode review --changed-only` only scans source files (not `.saascode/` or `saascode-kit/` scripts)
+- Test `saascode predeploy` in both monorepo (e.g. `apps/api/package.json`) and single-package (root `package.json`) projects
+- Verify AST review aggregates console.log warnings per file (>3 per file = single aggregated finding)
 - For npm changes: `npm pack --dry-run` to verify published file list
 
 ## Code of Conduct
