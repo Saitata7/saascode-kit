@@ -60,6 +60,8 @@ show_help() {
   printf "  %-28s %s\n" "saascode-kit docs" "Quick project overview (directory tree + stack)"
   printf "  %-28s %s\n" "saascode-kit docs --full" "Full docs (models, endpoints, pages, components)"
   printf "  %-28s %s\n" "saascode-kit docs --diagrams" "Add Mermaid architecture diagrams"
+  printf "  %-28s %s\n" "saascode-kit docs --prd \"idea\"" "Generate Product Brief (PRD)"
+  printf "  %-28s %s\n" "saascode-kit docs --prd --deep \"idea\"" "PRD with deep research per entity"
   echo ""
   echo -e "  ${CYAN}Deployment:${NC}"
   printf "  %-28s %s\n" "saascode-kit predeploy" "Run pre-deployment gates"
