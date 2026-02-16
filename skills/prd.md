@@ -1,72 +1,43 @@
 # Skill: Product Brief Generator
 
-> Trigger: /prd or /prd [idea] or /prd --deep [idea]
+> Trigger: /prd or /prd [idea]
 > Purpose: Generate a complete, implementation-ready Product Brief
 
-**What this generates:** A single-file Product Brief (PRD) that contains EVERYTHING needed before writing code. One file. No ambiguity. Every entity, rule, state, and flow — traced and connected.
+**What this generates:** A single-file Product Brief — everything needed before writing code. One file. Every entity, rule, state, and flow — traced and connected.
 
 **Output location:** `docs/product/product-brief.md`
 
-## Input Modes
+## Input
 
-| Command | Input Source |
-|---------|-------------|
+| Command | Source |
+|---------|--------|
 | `/prd` | **Existing project** — analyze codebase (schemas, routes, models) |
 | `/prd "idea"` | **New idea** — generate from description |
-| `/prd "add payments"` | **Extend existing** — add feature to current project |
 
-**When no idea is provided:** Read the project's database schemas, route handlers, models, middleware, and UI pages. Extract entities, relationships, rules, and flows from the actual code. Document what EXISTS.
+**No idea:** Read the project's database schemas, route handlers, models, middleware, and UI pages. Extract entities, relationships, rules, and flows from the actual code.
 
-**When an idea is provided:** Generate entities, relationships, rules, and flows from the idea description. Make reasonable assumptions.
-
-## Depth Modes
-
-| Mode | Command | Best For |
-|------|---------|----------|
-| **Standard** | `/prd` or `/prd "idea"` | All projects — complete PRD with all sections |
-| **Deep** | `/prd --deep` or `/prd --deep "idea"` | When you need deeper research into each entity |
-
-### Standard vs Deep — The Difference is DEPTH, Not Length
-
-Both modes produce ALL sections. The difference is how deep you go into each entity:
-
-| Aspect | Standard (prd) | Deep (prd --deep) |
-|--------|----------------|-------------------|
-| **Entity research** | Fields needed to build it | Fields needed + why each matters, industry patterns, edge cases |
-| **Field reasoning** | List the fields | List the fields + explain non-obvious choices, cite industry norms |
-| **Enum design** | Define the enums | Define enums + explain each value, when it transitions, who triggers it |
-| **Domain rules** | What must be true | What must be true + why (compliance refs, legal requirements, UX research) |
-| **State machines** | Valid transitions | Valid transitions + edge cases (timeout, retry, manual override) |
-| **Relationships** | How entities connect | How entities connect + matching signals, filtering strategies |
-| **Scope reasoning** | v1 vs later | v1 vs later + WHY each deferral (needs data, complex, dependency) |
-| **Industry context** | Assume standard | Research domain patterns (cite competitors, regulations, standards) |
-
-**Standard** = "Here's the PRD, let's build it"
-**Deep** = "Here's the PRD with deep research — every decision is explained and justified"
-
-**Default is Standard.** Use `--deep` when the domain has regulations (legal, health, finance), complex workflows, or when you need to justify every design decision to stakeholders.
+**With idea:** Generate entities, relationships, rules, and flows from the description. Make reasonable assumptions.
 
 ## How It Works
 
-You receive an idea (1 sentence to 1 paragraph). You produce a complete product brief by working through each section IN ORDER. Each section builds on the previous one — this is the traceability chain:
+Work through each section IN ORDER. Each section builds on the previous one:
 
 ```
-idea → Problem & Solution → Entities → Relationships → Domain Rules → State Machines → Core Flow → Scope → Build Order
+idea → Problem & Solution → Entities → Relationships → Domain Rules → State Machines → Core Flow → Build Order
 ```
 
-**Every decision must trace back to the idea. Every entity must appear in relationships. Every state must appear in domain rules. Nothing orphaned.**
+**Every entity must appear in relationships. Every status must have a state machine. Nothing orphaned.**
 
 ## Execution
 
 ### Step 0: Understand the Idea
 
-Read the idea. Before writing anything, determine:
+Before writing anything, determine:
 
-1. **Scale**: Is this a full platform (multiple user roles, complex workflows) or a focused tool (single purpose, simpler flows)?
-2. **Domain**: What industry/domain? (legal, health, fintech, e-commerce, devtools, etc.)
+1. **Scale**: Full platform (multiple roles, complex workflows) or focused tool (single purpose)?
+2. **Domain**: What industry? (legal, health, fintech, e-commerce, devtools, etc.)
 3. **Core actors**: Who are the 2-4 main user types?
 4. **Core transaction**: What is the ONE thing that flows through the system? (case, order, booking, project, ticket, etc.)
-5. **Mode**: Standard or Deep? (check if `--deep` flag was used)
 
 Do NOT ask questions. Make reasonable assumptions based on the idea and note them in the Problem section. The user will correct anything wrong.
 
@@ -242,29 +213,7 @@ Next action           →    Process                →   Result
 
 **Quality check:** If you follow this flow step by step, does the core entity reach its terminal state?
 
-### Step 8: Scope (v1 vs Later)
-
-Split features into what to build first vs what to defer.
-
-```markdown
-## v1 Scope
-
-**Build:**
-- [Feature 1] — [one line what it includes]
-- [Feature 2] — [one line what it includes]
-
-**Skip (v2+):**
-- [Feature] — [why it's deferred: needs data | complex | nice-to-have]
-```
-
-**Rules:**
-- v1 = minimum viable product that delivers the core value
-- v1 must include: auth, core entity CRUD, the main flow end-to-end, basic admin
-- v2 = things that need v1 data, advanced AI, complex integrations
-- Be specific about what's skipped AND why
-- If the idea is a focused tool, v1 might be everything — that's fine, skip this section
-
-### Step 9: Build Order
+### Step 8: Build Order
 
 Implementation sequence respecting dependencies.
 
@@ -288,7 +237,7 @@ Implementation sequence respecting dependencies.
 - Admin/dashboard last (it observes everything else)
 - 5-8 steps for a focused tool, 7-12 for a platform
 
-### Step 10: Closing Line
+### Step 9: Closing Line
 
 ```markdown
 ---
@@ -305,13 +254,12 @@ Implementation sequence respecting dependencies.
 5. **Use real field names** — camelCase, ready for code (`firstName` not "First Name")
 6. **Use real enum values** — UPPER_SNAKE, ready for code (`IN_PROGRESS` not "In Progress")
 7. **Consistent references** — if you name an entity `Case`, always call it `Case`, never "case" or "cases"
-8. **Include v1/v2 markers** on entities/features that are explicitly deferred
-9. **Supporting entities section** — group auth, audit, logging entities at the end of Step 3
-10. **Domain-specific compliance** — if the domain has regulations (legal, health, finance), call them out in Domain Rules
+8. **Supporting entities section** — group auth, audit, logging entities at the end of Step 3
+9. **Domain-specific compliance** — if the domain has regulations (legal, health, finance), call them out in Domain Rules
 
-## Deep Mode: Additional Section — AI Agents
+## Optional Section: AI Agents
 
-**Only include this section in `--deep` mode AND only if the idea involves AI/automation.**
+**Only include if the idea involves AI, automation, matching, classification, or prediction.**
 
 ```markdown
 ## 6. AI Agents
@@ -325,11 +273,6 @@ Implementation sequence respecting dependencies.
 - **v2**: [full AI approach]
 ```
 
-Rules:
-- Only include if the idea mentions AI, automation, matching, classification, or prediction
-- Show v1 (manual/rules-based) vs v2 (AI-powered) for each agent
-- Include discovery/onboarding pipelines if applicable
-
 ## Anti-Hallucination Rules
 
 - Do NOT invent industry-specific regulations unless you're certain they exist
@@ -338,29 +281,15 @@ Rules:
 - Do NOT over-engineer — if the idea is "todo app", don't add multi-tenancy
 - DO match the complexity to the idea — a marketplace needs more entities than a tool
 - DO use domain-specific terminology — if it's legal, use "case/matter"; if e-commerce, use "order/cart"
-- In Standard mode: keep it lean, skip nice-to-haves
-- In Deep mode: be thorough, include edge cases, compliance, supporting entities
 
-## Example Triggers
-
-**Standard mode:**
-```
-/prd "CLI tool that scans codebases for security issues and generates fix suggestions"
-```
-→ ~150-line product brief for a focused developer tool.
+## Examples
 
 ```
-/prd "Task management app for small teams with kanban boards"
+/prd "CLI tool that scans codebases for security issues"
 ```
-→ ~120-line product brief. Simple entities, straightforward flow.
-
-**Deep mode:**
-```
-/prd --deep "AI-powered legal marketplace that matches clients with attorneys, with escrow-protected payments and milestone-based case tracking"
-```
-→ ~400-line product brief covering entities, compliance (ABA/IOLTA), 4 AI agents, dispute resolution, multi-state licensing, and full v1/v2 scope split.
+→ Focused tool. 3-5 entities, simple flow.
 
 ```
-/prd --deep "Healthcare appointment platform connecting patients with specialists, with insurance verification and telehealth"
+/prd "AI-powered legal marketplace with escrow payments and case tracking"
 ```
-→ ~350-line product brief covering HIPAA compliance, insurance entities, appointment state machines, and provider credentialing.
+→ Full platform. 15+ entities, multiple state machines, compliance rules.

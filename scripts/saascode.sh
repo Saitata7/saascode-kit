@@ -388,17 +388,12 @@ HOOKS_EOF
 
 cmd_docs_prd() {
   local IDEA="$1"
-  local IS_DEEP="$2"
 
   local PROJECT_ROOT
   PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
   local PRD_DIR="$PROJECT_ROOT/docs/product"
   local PRD_FILE="$PRD_DIR/product-brief.md"
 
-  local MODE_LABEL="standard"
-  [ "$IS_DEEP" = "true" ] && MODE_LABEL="deep"
-
-  # If PRD already exists, warn
   if [ -f "$PRD_FILE" ]; then
     echo ""
     echo "  ${YELLOW}⚠${NC}  Already exists: $PRD_FILE"
@@ -410,22 +405,46 @@ cmd_docs_prd() {
   mkdir -p "$PRD_DIR"
 
   if [ -n "$IDEA" ]; then
-    # New idea — write idea + mode, AI handles the rest
     cat > "$PRD_FILE" << EOF
-<!-- MODE: ${MODE_LABEL} | SOURCE: new idea -->
-# ${IDEA}
+# Product Brief
+
+> ${IDEA}
+
+## Structure — generate each section IN ORDER:
+
+1. **Problem & Solution** — Pain points per actor, solution per problem, lifecycle in one line
+2. **Entities & Fields** — What things exist? What data do they hold? (camelCase fields, UPPER_SNAKE enums, ? for optional, **bold** for important)
+3. **Relationships** — How do they connect? (1:1, 1:many, many:many with context in parentheses)
+4. **Domain Rules** — What MUST be true? Grouped by category (constraints, access rules, timing rules)
+5. **State Machine** — ASCII diagram + transition table (| From | To | Who | Trigger |) for every status field
+6. **Core Flow** — Happy path: 3-column format (Actor | Platform | Actor) with arrows
+7. **Build Order** — Implementation sequence respecting dependencies (Auth first, Admin last)
+
+> Replace this file with the generated Product Brief.
 EOF
   else
-    # Existing project — just mode marker, AI analyzes codebase
     cat > "$PRD_FILE" << EOF
-<!-- MODE: ${MODE_LABEL} | SOURCE: existing project -->
+# Product Brief
+
+> Analyze this project's codebase and generate the Product Brief.
+
+## Structure — generate each section IN ORDER:
+
+1. **Problem & Solution** — What pain does this solve? For whom?
+2. **Entities & Fields** — Extract from database schemas (Prisma, TypeORM, SQL, etc.)
+3. **Relationships** — Extract from foreign keys and associations
+4. **Domain Rules** — Extract from validation logic, guards, middleware
+5. **State Machine** — Extract from status/enum fields and transition logic (ASCII diagram + table)
+6. **Core Flow** — Extract from route handlers and page navigation (3-column format)
+7. **Build Order** — Dependency order for implementation
+
+> Replace this file with the generated Product Brief.
 EOF
   fi
 
   echo ""
   echo "  ${GREEN}✓${NC} $PRD_FILE"
   [ -n "$IDEA" ] && echo "  ${CYAN}Idea:${NC} ${IDEA}"
-  echo "  ${CYAN}Mode:${NC} ${MODE_LABEL}"
   echo ""
 }
 
@@ -433,7 +452,6 @@ cmd_docs() {
   local MODE="simple"
   local HAS_DIAGRAMS=false
   local HAS_PRD=false
-  local PRD_DEEP=false
   local PRD_IDEA=""
   for arg in "$@"; do
     case "$arg" in
@@ -441,14 +459,13 @@ cmd_docs() {
       --full)     MODE="full" ;;
       --diagrams) HAS_DIAGRAMS=true ;;
       --prd)      HAS_PRD=true ;;
-      --deep)     PRD_DEEP=true ;;
       *)          [ "$HAS_PRD" = true ] && [ -z "$PRD_IDEA" ] && PRD_IDEA="$arg" ;;
     esac
   done
 
   # ── PRD mode: generate product brief ──
   if [ "$HAS_PRD" = true ]; then
-    cmd_docs_prd "$PRD_IDEA" "$PRD_DEEP"
+    cmd_docs_prd "$PRD_IDEA"
     return
   fi
 
@@ -937,10 +954,8 @@ cmd_help() {
   printf "  %-28s %s\n" "saascode-kit docs" "Quick project overview (directory tree + stack)"
   printf "  %-28s %s\n" "saascode-kit docs --full" "Full docs (models, endpoints, pages, components)"
   printf "  %-28s %s\n" "saascode-kit docs --diagrams" "Add Mermaid architecture diagrams"
-  printf "  %-28s %s\n" "saascode-kit docs --prd" "PRD from existing project"
-  printf "  %-28s %s\n" "saascode-kit docs --prd \"idea\"" "PRD from new idea"
-  printf "  %-28s %s\n" "saascode-kit docs --prd --deep" "Deep PRD from existing project"
-  printf "  %-28s %s\n" "saascode-kit docs --prd --deep \"idea\"" "Deep PRD from new idea"
+  printf "  %-28s %s\n" "saascode-kit docs --prd" "Product Brief from existing project"
+  printf "  %-28s %s\n" "saascode-kit docs --prd \"idea\"" "Product Brief from new idea"
   echo ""
   echo "  ${CYAN}Tracking:${NC}"
   printf "  %-28s %s\n" "saascode-kit intent" "View AI edit intent log"
@@ -969,9 +984,8 @@ cmd_help() {
   printf "  %-28s %s\n" "/test [feature]" "Write + run tests"
   printf "  %-28s %s\n" "/debug" "Classify + trace bugs"
   printf "  %-28s %s\n" "/docs [init|full|feature]" "Organize documentation"
-  printf "  %-28s %s\n" "/prd" "PRD from existing project"
-  printf "  %-28s %s\n" "/prd [idea]" "PRD from new idea"
-  printf "  %-28s %s\n" "/prd --deep [idea]" "Deep PRD (with research)"
+  printf "  %-28s %s\n" "/prd" "Product Brief from existing project"
+  printf "  %-28s %s\n" "/prd [idea]" "Product Brief from new idea"
   printf "  %-28s %s\n" "/api [all|module|postman]" "Generate API reference"
   printf "  %-28s %s\n" "/migrate [plan|apply]" "Database migration workflow"
   printf "  %-28s %s\n" "/deploy [env|rollback]" "Deployment guide"
