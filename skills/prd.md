@@ -1,18 +1,30 @@
 # Skill: Product Brief Generator
 
-> Trigger: /prd [idea] or /prd --deep [idea]
-> Purpose: Generate a complete, implementation-ready Product Brief from any idea
+> Trigger: /prd or /prd [idea] or /prd --deep [idea]
+> Purpose: Generate a complete, implementation-ready Product Brief
 
 **What this generates:** A single-file Product Brief (PRD) that contains EVERYTHING needed before writing code. One file. No ambiguity. Every entity, rule, state, and flow — traced and connected.
 
 **Output location:** `docs/product/product-brief.md`
 
-## Modes
+## Input Modes
+
+| Command | Input Source |
+|---------|-------------|
+| `/prd` | **Existing project** — analyze codebase (schemas, routes, models) |
+| `/prd "idea"` | **New idea** — generate from description |
+| `/prd "add payments"` | **Extend existing** — add feature to current project |
+
+**When no idea is provided:** Read the project's database schemas, route handlers, models, middleware, and UI pages. Extract entities, relationships, rules, and flows from the actual code. Document what EXISTS.
+
+**When an idea is provided:** Generate entities, relationships, rules, and flows from the idea description. Make reasonable assumptions.
+
+## Depth Modes
 
 | Mode | Command | Best For |
 |------|---------|----------|
-| **Standard** | `/prd "idea"` | All projects — complete PRD with all sections |
-| **Deep** | `/prd --deep "idea"` | When you need deeper research into each entity |
+| **Standard** | `/prd` or `/prd "idea"` | All projects — complete PRD with all sections |
+| **Deep** | `/prd --deep` or `/prd --deep "idea"` | When you need deeper research into each entity |
 
 ### Standard vs Deep — The Difference is DEPTH, Not Length
 
