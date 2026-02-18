@@ -939,6 +939,43 @@ cmd_windsurf() {
   echo -e "  ${GREEN}${BOLD}Installed $INSTALLED files for Windsurf.${NC}"
 }
 
+cmd_antigravity() {
+  echo -e "${BOLD}Installing Google Antigravity config...${NC}"
+  echo ""
+
+  local KIT_DIR
+  KIT_DIR="$(find_kit_dir "$ROOT")"
+  local MANIFEST="$KIT_DIR/manifest.yaml"
+
+  if [ ! -f "$MANIFEST" ] && [ -f "$ROOT/saascode-kit.yaml" ]; then
+    cp "$ROOT/saascode-kit.yaml" "$MANIFEST"
+  fi
+
+  if [ ! -f "$MANIFEST" ]; then
+    echo -e "${RED}Error: manifest.yaml not found${NC}"
+    echo "Run first: npx saascode-kit init"
+    exit 1
+  fi
+
+  load_manifest_vars "$MANIFEST"
+  local INSTALLED=0
+
+  # .agent/rules/ from template
+  if [ -f "$KIT_DIR/templates/antigravity-rules.md.template" ]; then
+    mkdir -p "$ROOT/.agent/rules"
+    cp "$KIT_DIR/templates/antigravity-rules.md.template" "$ROOT/.agent/rules/project-rules.md"
+    replace_placeholders "$ROOT/.agent/rules/project-rules.md"
+    process_conditionals "$ROOT/.agent/rules/project-rules.md"
+    echo -e "  ${GREEN}✓${NC} .agent/rules/project-rules.md"
+    INSTALLED=$((INSTALLED + 1))
+  else
+    echo -e "  ${RED}✗${NC} templates/antigravity-rules.md.template not found"
+  fi
+
+  echo ""
+  echo -e "  ${GREEN}${BOLD}Installed $INSTALLED files for Google Antigravity.${NC}"
+}
+
 cmd_copilot() {
   echo -e "${BOLD}Installing GitHub Copilot config...${NC}"
   echo ""
@@ -1038,6 +1075,7 @@ cmd_help() {
   printf "  %-28s %s\n" "saascode-kit claude" "Install Claude Code config (CLAUDE.md, skills, hooks)"
   printf "  %-28s %s\n" "saascode-kit cursor" "Install Cursor config (.cursorrules, rules)"
   printf "  %-28s %s\n" "saascode-kit windsurf" "Install Windsurf config (.windsurfrules)"
+  printf "  %-28s %s\n" "saascode-kit antigravity" "Install Google Antigravity config (.agent/rules/)"
   printf "  %-28s %s\n" "saascode-kit copilot" "Install GitHub Copilot config"
   printf "  %-28s %s\n" "saascode-kit aider" "Install Aider config (CONVENTIONS.md)"
   echo ""
@@ -1127,6 +1165,7 @@ case "$COMMAND" in
   claude)     cmd_claude "$@" ;;
   cursor)     cmd_cursor "$@" ;;
   windsurf)   cmd_windsurf "$@" ;;
+  antigravity) cmd_antigravity "$@" ;;
   copilot)    cmd_copilot "$@" ;;
   aider)      cmd_aider "$@" ;;
   review)     cmd_review "$@" ;;

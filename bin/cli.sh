@@ -47,6 +47,7 @@ show_help() {
   printf "  %-28s %s\n" "saascode-kit claude" "Install Claude Code config (CLAUDE.md, skills, hooks)"
   printf "  %-28s %s\n" "saascode-kit cursor" "Install Cursor config (.cursorrules, rules)"
   printf "  %-28s %s\n" "saascode-kit windsurf" "Install Windsurf config (.windsurfrules)"
+  printf "  %-28s %s\n" "saascode-kit antigravity" "Install Google Antigravity config"
   printf "  %-28s %s\n" "saascode-kit copilot" "Install GitHub Copilot config"
   printf "  %-28s %s\n" "saascode-kit aider" "Install Aider config (CONVENTIONS.md)"
   echo ""
