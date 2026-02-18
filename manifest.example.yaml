@@ -19,14 +19,14 @@ stack:
     state: "react-query"          # react-query, redux, zustand, jotai, none
 
   backend:
-    framework: "nestjs"           # nestjs, express, fastify, hono, django, rails, laravel
+    framework: "nestjs"           # nestjs, express, fastify, hono, django, rails, spring, laravel, gin
     version: "10"
     orm: "prisma"                 # prisma, typeorm, drizzle, sequelize, mongoose, sqlalchemy
     database: "postgresql"        # postgresql, mysql, mongodb, sqlite
     cache: "redis"                # redis, memcached, none
     queue: "bull"                 # bull, bullmq, rabbitmq, sqs, none
 
-  language: "typescript"          # typescript, javascript, python, ruby, go, java
+  language: "typescript"          # typescript, javascript, python, ruby, go, java, kotlin, php
 
 # Authentication
 auth:

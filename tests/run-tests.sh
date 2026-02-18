@@ -1,8 +1,13 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Cursor AI Comprehensive Test Runner
-# Tests ALL commands (including cloak/uncloak) on ALL projects
-# Bug-fix loop: find bugs → fix → re-test → score
+# SaasCode Kit — Automated Test Runner
+# Tests ALL commands on ALL fixture projects
+# Exit 0 = all passed, Exit 1 = failures found
+#
+# Usage:
+#   bash tests/run-tests.sh           # Full test suite
+#   bash tests/run-tests.sh --quick   # Core projects only (fast CI)
+#   bash tests/run-tests.sh 01 03     # Specific projects
 # ═══════════════════════════════════════════════════════════
 
 set -e
@@ -10,8 +15,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 KIT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECTS_DIR="$SCRIPT_DIR/projects"
-RESULTS_FILE="$SCRIPT_DIR/cursor-results.txt"
-SCORECARD_FILE="$SCRIPT_DIR/TEST-CURSOR_RESULTS.md"
+RESULTS_FILE="$SCRIPT_DIR/results.txt"
 
 # Colors
 RED='\033[0;31m'
@@ -138,6 +142,77 @@ stack:
 paths:
   backend: "app"
   frontend: "resources"
+EOF
+      ;;
+    11-rust-cli)
+      cat <<EOF
+project:
+  name: "Rust CLI"
+  type: "cli-tool"
+stack:
+  language: "rust"
+paths:
+  backend: "src"
+EOF
+      ;;
+    12-c-project)
+      cat <<EOF
+project:
+  name: "C Project"
+  type: "generic"
+stack:
+  language: "c"
+paths:
+  backend: "src"
+EOF
+      ;;
+    13-static-html)
+      cat <<EOF
+project:
+  name: "Static Site"
+  type: "frontend-app"
+stack:
+  language: "javascript"
+  frontend:
+    framework: "vanilla"
+paths:
+  frontend: "."
+EOF
+      ;;
+    14-py-datascience)
+      cat <<EOF
+project:
+  name: "Data Science Project"
+  type: "generic"
+stack:
+  language: "python"
+paths:
+  backend: "."
+EOF
+      ;;
+    15-ruby-rails)
+      cat <<EOF
+project:
+  name: "Rails App"
+  type: "full-stack-app"
+stack:
+  language: "ruby"
+  backend:
+    framework: "rails"
+paths:
+  backend: "app"
+  frontend: "app/views"
+EOF
+      ;;
+    16-kotlin-android)
+      cat <<EOF
+project:
+  name: "Android App"
+  type: "mobile-app"
+stack:
+  language: "java"
+paths:
+  backend: "app/src/main"
 EOF
       ;;
     *)
@@ -382,25 +457,51 @@ test_project() {
 
 # ─── Main execution ───
 main() {
+  local RUN_PROJECTS=()
+
+  # Parse arguments
+  if [ "$1" = "--quick" ]; then
+    RUN_PROJECTS=("${PHASE1[@]}" "${PHASE2[@]}")
+    shift
+  elif [ $# -gt 0 ]; then
+    # Match partial project names (e.g., "01" matches "01-ts-nestjs-nextjs")
+    for ARG in "$@"; do
+      for PROJ in "${ALL_PROJECTS[@]}"; do
+        if [[ "$PROJ" == "$ARG"* ]]; then
+          RUN_PROJECTS+=("$PROJ")
+        fi
+      done
+    done
+  else
+    RUN_PROJECTS=("${ALL_PROJECTS[@]}")
+  fi
+
   echo ""
   echo -e "${BOLD}${CYAN}════════════════════════════════════════════════════${NC}"
-  echo -e "${BOLD}SaasCode Kit — Cursor AI Comprehensive Test Suite${NC}"
+  echo -e "${BOLD}SaasCode Kit — Automated Test Suite${NC}"
   echo -e "${CYAN}════════════════════════════════════════════════════${NC}"
   echo ""
-  echo "Testing ${#ALL_PROJECTS[@]} projects with ${#COMMANDS[@]} commands"
+  echo "Testing ${#RUN_PROJECTS[@]} projects with ${#COMMANDS[@]} commands"
   echo "Commands: ${COMMANDS[*]}"
   echo ""
 
   local TOTAL_SCORE=0
   local TOTAL_MAX=0
+  local FAILED_PROJECTS=0
 
-  for PROJECT in "${ALL_PROJECTS[@]}"; do
+  for PROJECT in "${RUN_PROJECTS[@]}"; do
     # Run test and capture score from last line
     local TEST_OUTPUT=$(test_project "$PROJECT" 2>&1)
     echo "$TEST_OUTPUT"
     local PROJ_SCORE=$(echo "$TEST_OUTPUT" | tail -1 | grep -oE '^[0-9]+$' || echo "0")
+    local PROJ_MAX=$((${#COMMANDS[@]} * 2))
     TOTAL_SCORE=$((TOTAL_SCORE + PROJ_SCORE))
-    TOTAL_MAX=$((TOTAL_MAX + ${#COMMANDS[@]} * 2))
+    TOTAL_MAX=$((TOTAL_MAX + PROJ_MAX))
+
+    # Count failures (score below 50% = failed)
+    if [ "$PROJ_SCORE" -lt "$((PROJ_MAX / 2))" ]; then
+      FAILED_PROJECTS=$((FAILED_PROJECTS + 1))
+    fi
   done
 
   echo ""
@@ -409,10 +510,22 @@ main() {
   echo -e "${CYAN}════════════════════════════════════════════════════${NC}"
   echo ""
   echo -e "Total Score: ${GREEN}$TOTAL_SCORE / $TOTAL_MAX${NC}"
-  echo -e "Bugs Found: ${YELLOW}$BUGS_FOUND${NC}"
-  echo -e "Bugs Fixed: ${GREEN}$BUGS_FIXED${NC}"
+  local PERCENT=$((TOTAL_SCORE * 100 / TOTAL_MAX))
+  echo -e "Pass Rate: ${GREEN}${PERCENT}%${NC}"
+  if [ $FAILED_PROJECTS -gt 0 ]; then
+    echo -e "Failed Projects: ${RED}$FAILED_PROJECTS${NC}"
+  fi
   echo ""
   echo "Results saved to: $RESULTS_FILE"
+
+  # Exit with error if any project critically failed
+  if [ $FAILED_PROJECTS -gt 0 ]; then
+    echo -e "${RED}FAILED: $FAILED_PROJECTS project(s) scored below 50%${NC}"
+    exit 1
+  else
+    echo -e "${GREEN}PASSED: All projects scored above 50%${NC}"
+    exit 0
+  fi
 }
 
 # Run if executed directly

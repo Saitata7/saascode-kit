@@ -10,7 +10,8 @@
 #   python      → ast-review-python.py (stdlib ast)
 #   java        → ast-review-java.sh (grep/awk)
 #   javascript  → graceful skip (use check-file/audit)
-#   go          → graceful skip (use go vet)
+#   go          → ast-review-go.sh (grep/awk)
+#   ruby        → ast-review-ruby.sh (grep/awk)
 # ═══════════════════════════════════════════════════════════
 
 set -e
@@ -69,6 +70,8 @@ detect_language() {
     echo "python"
   elif [ -f "$PROJECT_ROOT/go.mod" ]; then
     echo "go"
+  elif [ -f "$PROJECT_ROOT/Gemfile" ] || [ -f "$PROJECT_ROOT/config/routes.rb" ]; then
+    echo "ruby"
   elif [ -f "$PROJECT_ROOT/package.json" ]; then
     # JS project (no tsconfig = not TypeScript)
     echo "javascript"
@@ -152,21 +155,37 @@ case "$LANG" in
     ;;
 
   go)
-    echo -e "${CYAN}AST review is not available for Go.${NC}"
-    echo ""
-    echo "Go has excellent built-in tooling for static analysis."
-    echo "Use these alternatives instead:"
-    echo "  go vet ./...                  Built-in static analyzer"
-    echo "  staticcheck ./...             Extended static analysis"
-    echo "  govulncheck ./...             Vulnerability scanner"
-    echo "  saascode audit                Full security + quality audit"
-    exit 0
+    SCRIPT_GO=""
+    for CANDIDATE in "$SCRIPT_DIR/ast-review-go.sh" "$PROJECT_ROOT/.saascode/scripts/ast-review-go.sh" "$PROJECT_ROOT/saascode-kit/scripts/ast-review-go.sh"; do
+      [ -f "$CANDIDATE" ] && SCRIPT_GO="$CANDIDATE" && break
+    done
+
+    if [ -z "$SCRIPT_GO" ]; then
+      echo -e "${RED}ast-review-go.sh not found. Run: saascode init${NC}"
+      exit 1
+    fi
+
+    bash "$SCRIPT_GO" "$@"
+    ;;
+
+  ruby)
+    SCRIPT_RUBY=""
+    for CANDIDATE in "$SCRIPT_DIR/ast-review-ruby.sh" "$PROJECT_ROOT/.saascode/scripts/ast-review-ruby.sh" "$PROJECT_ROOT/saascode-kit/scripts/ast-review-ruby.sh"; do
+      [ -f "$CANDIDATE" ] && SCRIPT_RUBY="$CANDIDATE" && break
+    done
+
+    if [ -z "$SCRIPT_RUBY" ]; then
+      echo -e "${RED}ast-review-ruby.sh not found. Run: saascode init${NC}"
+      exit 1
+    fi
+
+    bash "$SCRIPT_RUBY" "$@"
     ;;
 
   *)
     echo -e "${YELLOW}AST review is not available for language: $LANG${NC}"
     echo ""
-    echo "Supported languages: typescript, python, java"
+    echo "Supported languages: typescript, python, java, go, ruby"
     echo "Use 'saascode audit' or 'saascode check-file' for universal checks."
     exit 0
     ;;

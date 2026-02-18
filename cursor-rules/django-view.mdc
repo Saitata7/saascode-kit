@@ -1,0 +1,70 @@
+---
+description: Rules for Django views — permissions, querysets, serializers
+globs: ["**/views/**/*.py", "**/views.py", "**/viewsets/**/*.py", "**/serializers/**/*.py", "**/serializers.py"]
+---
+
+# Django View Rules
+
+## Permission Classes (CRITICAL)
+Every view MUST declare permission_classes:
+```python
+# CORRECT — explicit permissions
+class UserViewSet(ModelViewSet):
+    permission_classes = [IsAuthenticated, IsTenantMember]
+
+# WRONG — defaults to AllowAny (if misconfigured)
+class UserViewSet(ModelViewSet):
+    queryset = User.objects.all()
+```
+
+## Queryset Scoping (CRITICAL)
+Always filter to the current tenant/user:
+```python
+# CORRECT — scoped to tenant
+def get_queryset(self):
+    return Item.objects.filter(tenant=self.request.user.tenant)
+
+# WRONG — returns ALL data
+def get_queryset(self):
+    return Item.objects.all()
+```
+
+## Serializer Validation
+Use serializers for input validation — never trust raw request.data:
+```python
+# CORRECT
+serializer = ItemSerializer(data=request.data)
+serializer.is_valid(raise_exception=True)
+item = serializer.save(tenant=request.user.tenant)
+
+# WRONG — raw dict into model
+Item.objects.create(**request.data)
+```
+
+## Object-Level Permissions
+Use get_object() with permission checks:
+```python
+# CORRECT — checks ownership
+def get_object(self):
+    obj = super().get_object()
+    if obj.tenant != self.request.user.tenant:
+        raise PermissionDenied()
+    return obj
+```
+
+## SQL Injection Prevention
+Never use f-strings or .format() in queries:
+```python
+# CORRECT — parameterized
+User.objects.raw('SELECT * FROM users WHERE id = %s', [user_id])
+
+# WRONG — SQL injection
+User.objects.raw(f'SELECT * FROM users WHERE id = {user_id}')
+```
+
+## Response Format
+Use DRF Response with status codes:
+```python
+return Response({'success': True, 'data': serializer.data}, status=200)
+return Response({'error': 'Not found'}, status=404)
+```

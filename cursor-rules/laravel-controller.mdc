@@ -1,0 +1,117 @@
+---
+description: Rules for Laravel controllers — middleware, policies, Eloquent scoping
+globs: ["**/app/Http/Controllers/**/*.php", "**/app/Policies/**/*.php", "**/routes/*.php"]
+---
+
+# Laravel Controller Rules
+
+## Auth Middleware (CRITICAL)
+Every controller MUST use auth middleware:
+```php
+// CORRECT — middleware in constructor
+class ItemController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('verified')->only(['store', 'update', 'destroy']);
+    }
+
+// CORRECT — middleware in routes
+Route::middleware(['auth'])->group(function () {
+    Route::resource('items', ItemController::class);
+});
+
+// WRONG — no middleware
+Route::get('/items', [ItemController::class, 'index']);
+```
+
+## Form Request Validation (CRITICAL)
+Use Form Requests — never trust raw input:
+```php
+// CORRECT — validated via Form Request
+public function store(StoreItemRequest $request)
+{
+    $item = auth()->user()->tenant->items()->create($request->validated());
+}
+
+// WRONG — raw input
+public function store(Request $request)
+{
+    Item::create($request->all());
+}
+```
+
+## Tenant Scoping (CRITICAL)
+Always scope Eloquent queries through relationships:
+```php
+// CORRECT — scoped through tenant
+public function index()
+{
+    $items = auth()->user()->tenant->items()->paginate();
+    return response()->json(['success' => true, 'data' => $items]);
+}
+
+// WRONG — leaks all tenants' data
+public function index()
+{
+    return Item::all();
+}
+
+// CORRECT — find through relationship
+public function show($id)
+{
+    $item = auth()->user()->tenant->items()->findOrFail($id);
+}
+
+// WRONG — unscoped find
+public function show($id)
+{
+    $item = Item::findOrFail($id);
+}
+```
+
+## Policy Authorization
+Authorize every action:
+```php
+// CORRECT — policy check
+public function update(UpdateItemRequest $request, Item $item)
+{
+    $this->authorize('update', $item);
+    $item->update($request->validated());
+}
+```
+
+## SQL Injection Prevention
+Never interpolate in queries:
+```php
+// CORRECT — parameterized
+DB::select('SELECT * FROM items WHERE tenant_id = ?', [$tenantId]);
+Item::where('name', $name)->get();
+
+// WRONG — SQL injection
+DB::select("SELECT * FROM items WHERE name = '$name'");
+DB::raw("SELECT * FROM items WHERE id = " . $id);
+```
+
+## Mass Assignment Protection
+Always define $fillable or $guarded:
+```php
+// CORRECT — explicit fillable
+class Item extends Model
+{
+    protected $fillable = ['name', 'description', 'price'];
+}
+
+// WRONG — no protection
+class Item extends Model
+{
+    protected $guarded = [];
+}
+```
+
+## Response Format
+```php
+return response()->json(['success' => true, 'data' => $items]);
+return response()->json(['error' => 'Not found'], 404);
+```

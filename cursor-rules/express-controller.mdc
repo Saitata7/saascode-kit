@@ -1,0 +1,73 @@
+---
+description: Rules for Express/Fastify controllers — middleware, auth, validation
+globs: ["**/routes/**/*.js", "**/routes/**/*.ts", "**/controllers/**/*.js", "**/controllers/**/*.ts", "**/middleware/**/*.js", "**/middleware/**/*.ts"]
+---
+
+# Express/Fastify Controller Rules
+
+## Auth Middleware (CRITICAL)
+Every route MUST have auth middleware unless explicitly public:
+```javascript
+// CORRECT — auth middleware applied
+router.get('/users', authMiddleware, usersController.list);
+router.use('/admin', authMiddleware, adminRoutes);
+
+// WRONG — no auth check
+router.get('/users', usersController.list);
+```
+
+## Middleware Order
+Auth → Tenant → Validate → Handler:
+```javascript
+router.post('/items',
+  authenticate,        // 1. Who are you?
+  requireTenant,       // 2. Which tenant?
+  validate(createDto), // 3. Is input valid?
+  itemsController.create // 4. Handle
+);
+```
+
+## Input Validation (CRITICAL)
+Never trust req.body/req.params directly:
+```javascript
+// CORRECT — validate with schema
+const { error, value } = schema.validate(req.body);
+if (error) return res.status(400).json({ error: error.message });
+
+// WRONG — raw input
+const { name, email } = req.body;
+db.query('INSERT INTO users ...', [name, email]);
+```
+
+## Tenant Isolation
+Always scope queries to the authenticated tenant:
+```javascript
+// CORRECT
+const items = await Item.find({ tenantId: req.tenant.id });
+
+// WRONG — returns ALL tenants' data
+const items = await Item.find({});
+```
+
+## Error Handling
+Use async wrapper or express-async-errors — never swallow errors:
+```javascript
+// CORRECT
+router.get('/items', asyncHandler(async (req, res) => {
+  const items = await service.findAll(req.tenant.id);
+  res.json({ success: true, data: items });
+}));
+
+// WRONG — unhandled promise rejection
+router.get('/items', async (req, res) => {
+  const items = await service.findAll(); // no catch
+  res.json(items);
+});
+```
+
+## Response Format
+Consistent response shape:
+```javascript
+res.json({ success: true, data: result });
+res.status(400).json({ success: false, error: 'message' });
+```

@@ -1,0 +1,91 @@
+---
+description: Rules for Spring Boot controllers — @PreAuthorize, @Valid, JPA scoping
+globs: ["**/controller/**/*.java", "**/controllers/**/*.java", "**/Controller.java"]
+---
+
+# Spring Boot Controller Rules
+
+## Security Annotations (CRITICAL)
+Every endpoint MUST have @PreAuthorize or @Secured:
+```java
+// CORRECT — authorization on every endpoint
+@PreAuthorize("hasRole('USER')")
+@GetMapping
+public ResponseEntity<List<ItemDto>> getAll(@AuthenticationPrincipal User user) {
+    return ResponseEntity.ok(itemService.findByTenant(user.getTenantId()));
+}
+
+// WRONG — no authorization
+@GetMapping
+public ResponseEntity<List<ItemDto>> getAll() {
+    return ResponseEntity.ok(itemService.findAll());
+}
+```
+
+## Input Validation (CRITICAL)
+Always use @Valid on @RequestBody:
+```java
+// CORRECT — validated input
+@PostMapping
+public ResponseEntity<ItemDto> create(
+    @Valid @RequestBody CreateItemDto dto,
+    @AuthenticationPrincipal User user) { ... }
+
+// WRONG — unvalidated input
+@PostMapping
+public ResponseEntity<ItemDto> create(@RequestBody CreateItemDto dto) { ... }
+```
+
+## Tenant Isolation (CRITICAL)
+Always pass tenant context to service layer:
+```java
+// CORRECT — scoped to tenant
+@GetMapping("/{id}")
+public ResponseEntity<ItemDto> getById(
+    @PathVariable Long id,
+    @AuthenticationPrincipal User user) {
+    return ResponseEntity.ok(
+        itemService.findByIdAndTenantId(id, user.getTenantId()));
+}
+
+// WRONG — unscoped
+@GetMapping("/{id}")
+public ResponseEntity<ItemDto> getById(@PathVariable Long id) {
+    return ResponseEntity.ok(itemService.findById(id));
+}
+```
+
+## SQL Injection Prevention
+Use JPA parameterized queries:
+```java
+// CORRECT — named parameter
+@Query("SELECT u FROM User u WHERE u.email = :email AND u.tenantId = :tenantId")
+Optional<User> findByEmailAndTenant(@Param("email") String email, @Param("tenantId") Long tenantId);
+
+// WRONG — concatenation
+entityManager.createQuery("SELECT u FROM User u WHERE u.email = '" + email + "'");
+```
+
+## No System.out.println
+Use SLF4J logger:
+```java
+// CORRECT
+private static final Logger log = LoggerFactory.getLogger(ItemController.class);
+log.info("Item created: {}", item.getId());
+
+// WRONG
+System.out.println("Item created: " + item.getId());
+```
+
+## Empty Catch Blocks
+Never swallow exceptions:
+```java
+// CORRECT — log and handle
+catch (Exception e) {
+    log.error("Failed to process item: {}", e.getMessage(), e);
+    throw new ServiceException("Processing failed", e);
+}
+
+// WRONG — silent failure
+catch (Exception e) { }
+```

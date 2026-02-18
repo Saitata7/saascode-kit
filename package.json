@@ -5,6 +5,10 @@
   "bin": {
     "saascode-kit": "./bin/cli.sh"
   },
+  "scripts": {
+    "test": "bash tests/run-tests.sh",
+    "test:quick": "bash tests/run-tests.sh --quick"
+  },
   "files": [
     "bin/",
     "scripts/",

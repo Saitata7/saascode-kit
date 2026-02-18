@@ -191,9 +191,17 @@ OUTPUT=""
 _ISSUE_CAT=""  # set by each check section
 
 warn() {
+  # Check if this category is suppressed by adaptive learning
+  local ADAPT_SCRIPT="$(dirname "$0")/adaptive-learn.sh"
+  if [ -f "$ADAPT_SCRIPT" ] && bash "$ADAPT_SCRIPT" is-suppressed "${_ISSUE_CAT:-general}" 2>/dev/null; then
+    return  # Silently skip suppressed warnings
+  fi
   WARNINGS=$((WARNINGS + 1))
   OUTPUT="${OUTPUT}WARNING: $1\n"
   log_issue "check-file" "warning" "${_ISSUE_CAT:-general}" "$1" "$FILE" "" ""
+  # Log for adaptive learning
+  local ADAPT_SCRIPT2="$(dirname "$0")/adaptive-learn.sh"
+  [ -f "$ADAPT_SCRIPT2" ] && bash "$ADAPT_SCRIPT2" log "${_ISSUE_CAT:-general}" "$FILE" "$1" 2>/dev/null || true
 }
 
 critical() {
@@ -858,6 +866,86 @@ case "$BASENAME" in
       LINENUM=$(echo "$LINE" | cut -d: -f1)
       warn "Bare except: catches all exceptions including SystemExit/KeyboardInterrupt (line $LINENUM)"
     done < <(grep -n '^\s*except\s*:' "$FILE" 2>/dev/null || true)
+    ;;
+esac
+
+# ═══════════════════════════════════════
+# HALLUCINATION DETECTION (kluster.ai-inspired)
+# Catches non-existent local imports/requires
+# ═══════════════════════════════════════
+_ISSUE_CAT="hallucinated-import"
+
+check_import_exists() {
+  local IMPORT_PATH="$1"
+  local SOURCE_DIR
+  SOURCE_DIR="$(dirname "$FILE")"
+
+  # Skip node_modules, packages, absolute imports, URLs
+  case "$IMPORT_PATH" in
+    @*|~*|http*|node:*|.*node_modules*) return ;;
+  esac
+
+  # Only check relative imports (./something or ../something)
+  case "$IMPORT_PATH" in
+    ./*|../*)
+      local RESOLVED="$SOURCE_DIR/$IMPORT_PATH"
+      # Try with common extensions
+      local FOUND=false
+      for EXT in "" ".ts" ".tsx" ".js" ".jsx" ".json" "/index.ts" "/index.tsx" "/index.js" "/index.jsx" ".py" ".rb" ".go"; do
+        if [ -f "${RESOLVED}${EXT}" ] || [ -d "$RESOLVED" ]; then
+          FOUND=true
+          break
+        fi
+      done
+      if [ "$FOUND" = false ]; then
+        warn "Import '${IMPORT_PATH}' — file does not exist (possible hallucination)"
+      fi
+      ;;
+  esac
+}
+
+case "$BASENAME" in
+  *.ts|*.tsx|*.js|*.jsx)
+    # Check TypeScript/JavaScript imports
+    while IFS= read -r LINE; do
+      [ -z "$LINE" ] && continue
+      IMPORT_PATH=$(echo "$LINE" | sed -n "s/.*from ['\"]\\(\\.[^'\"]*\\)['\"].*/\\1/p")
+      [ -z "$IMPORT_PATH" ] && IMPORT_PATH=$(echo "$LINE" | sed -n "s/.*require(['\"]\\(\\.[^'\"]*\\)['\"])/\\1/p")
+      [ -n "$IMPORT_PATH" ] && check_import_exists "$IMPORT_PATH"
+    done < <(grep -E "^[[:space:]]*(import|export).*from ['\"]\\.|require\\(['\"]\\." "$FILE" 2>/dev/null || true)
+    ;;
+  *.py)
+    # Check Python relative imports — from .module import something
+    while IFS= read -r LINE; do
+      [ -z "$LINE" ] && continue
+      REL_MOD=$(echo "$LINE" | sed -n 's/.*from \.\([a-zA-Z_][a-zA-Z0-9_.]*\) import.*/\1/p')
+      if [ -n "$REL_MOD" ]; then
+        MOD_FILE="$(dirname "$FILE")/${REL_MOD//.//}.py"
+        MOD_DIR="$(dirname "$FILE")/${REL_MOD//.//}/__init__.py"
+        if [ ! -f "$MOD_FILE" ] && [ ! -f "$MOD_DIR" ]; then
+          warn "Relative import '.${REL_MOD}' — module does not exist (possible hallucination)"
+        fi
+      fi
+    done < <(grep '^from \.' "$FILE" 2>/dev/null || true)
+    ;;
+  *.go)
+    # Check Go local package imports (project-relative, not stdlib)
+    GO_MOD=""
+    if [ -f "$ROOT/go.mod" ]; then
+      GO_MOD=$(head -1 "$ROOT/go.mod" 2>/dev/null | awk '{print $2}')
+    fi
+    if [ -n "$GO_MOD" ]; then
+      while IFS= read -r LINE; do
+        [ -z "$LINE" ] && continue
+        PKG=$(echo "$LINE" | sed -n 's/.*"\('"$(echo "$GO_MOD" | sed 's/[./]/\\&/g')"'\/[^"]*\)".*/\1/p')
+        if [ -n "$PKG" ]; then
+          LOCAL_PATH="$ROOT/${PKG#$GO_MOD/}"
+          if [ ! -d "$LOCAL_PATH" ]; then
+            warn "Import '${PKG}' — package directory does not exist (possible hallucination)"
+          fi
+        fi
+      done < <(grep "\"${GO_MOD}/" "$FILE" 2>/dev/null || true)
+    fi
     ;;
 esac
 

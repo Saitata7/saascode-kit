@@ -1,0 +1,96 @@
+---
+description: Rules for Rails controllers — before_action, strong params, scoping
+globs: ["**/app/controllers/**/*.rb", "**/app/policies/**/*.rb"]
+---
+
+# Rails Controller Rules
+
+## Authentication (CRITICAL)
+Every controller MUST have before_action for auth:
+```ruby
+# CORRECT — auth required
+class ItemsController < ApplicationController
+  before_action :authenticate_user!
+  before_action :set_item, only: [:show, :update, :destroy]
+
+# WRONG — no auth
+class ItemsController < ApplicationController
+  def index
+    @items = Item.all
+```
+
+## Strong Parameters (CRITICAL)
+Never use params.permit! — always whitelist:
+```ruby
+# CORRECT — explicit whitelist
+def item_params
+  params.require(:item).permit(:name, :description, :price)
+end
+
+# WRONG — mass assignment vulnerability
+def item_params
+  params.permit!
+end
+```
+
+## Tenant Scoping (CRITICAL)
+Always scope queries through current_user or current_tenant:
+```ruby
+# CORRECT — scoped
+def index
+  @items = current_user.tenant.items
+end
+
+# WRONG — leaks data across tenants
+def index
+  @items = Item.all
+end
+
+# CORRECT — find through association
+def set_item
+  @item = current_user.tenant.items.find(params[:id])
+end
+
+# WRONG — unscoped find
+def set_item
+  @item = Item.find(params[:id])
+end
+```
+
+## Authorization with Pundit/CanCanCan
+Authorize every action:
+```ruby
+# CORRECT — policy check
+def update
+  @item = current_user.tenant.items.find(params[:id])
+  authorize @item
+  @item.update!(item_params)
+end
+```
+
+## SQL Injection Prevention
+Never interpolate in queries:
+```ruby
+# CORRECT — parameterized
+Item.where('name = ?', params[:name])
+Item.where(name: params[:name])
+
+# WRONG — SQL injection
+Item.where("name = '#{params[:name]}'")
+```
+
+## No Debug Statements
+Remove before committing:
+```ruby
+# REMOVE these:
+binding.pry
+byebug
+debugger
+puts params.inspect
+```
+
+## Response Format
+```ruby
+render json: { success: true, data: @items }, status: :ok
+render json: { error: 'Not found' }, status: :not_found
+```

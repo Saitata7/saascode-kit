@@ -191,6 +191,42 @@ if [ -d "$TARGET/.cursor" ] && [ -d "$KIT_DIR/cursor-rules" ]; then
       echo "  ${YELLOW}—${NC} .cursor/rules/ai-security.mdc (skipped — ai.enabled=false)"
     fi
   fi
+
+  # Framework-specific cursor rules: keep only the matching framework rule
+  FRAMEWORK_RULES="express-controller.mdc django-view.mdc rails-controller.mdc spring-controller.mdc laravel-controller.mdc"
+  MATCHING_RULE=""
+  case "${LANGUAGE:-typescript}" in
+    typescript|javascript)
+      case "${BACKEND_FRAMEWORK:-}" in
+        express|fastify) MATCHING_RULE="express-controller.mdc" ;;
+        nestjs|nest)     MATCHING_RULE="" ;; # Use default backend-controller.mdc (NestJS)
+        *)               MATCHING_RULE="express-controller.mdc" ;; # Default for JS/TS
+      esac
+      ;;
+    python)  MATCHING_RULE="django-view.mdc" ;;
+    ruby)    MATCHING_RULE="rails-controller.mdc" ;;
+    java|kotlin) MATCHING_RULE="spring-controller.mdc" ;;
+    php)     MATCHING_RULE="laravel-controller.mdc" ;;
+  esac
+
+  # Remove non-matching framework rules, keep the matching one
+  for FR in $FRAMEWORK_RULES; do
+    if [ "$FR" != "$MATCHING_RULE" ] && [ -f "$TARGET/.cursor/rules/$FR" ]; then
+      rm "$TARGET/.cursor/rules/$FR"
+      INSTALLED=$((INSTALLED - 1))
+    fi
+  done
+
+  # For non-NestJS frameworks, remove NestJS-specific backend-controller.mdc
+  if [ -n "$MATCHING_RULE" ] && [ -f "$TARGET/.cursor/rules/backend-controller.mdc" ]; then
+    rm "$TARGET/.cursor/rules/backend-controller.mdc"
+    INSTALLED=$((INSTALLED - 1))
+    echo "  ${YELLOW}—${NC} .cursor/rules/backend-controller.mdc (replaced by $MATCHING_RULE)"
+  fi
+
+  if [ -n "$MATCHING_RULE" ]; then
+    echo "  ${GREEN}✓${NC} .cursor/rules/$MATCHING_RULE (framework-specific)"
+  fi
 else
   if [ "$INSTALL_TEMPLATES" = true ] && [ ! -d "$TARGET/.cursor" ]; then
     echo "  ${YELLOW}—${NC} .cursor/rules/ (skipped — no .cursor/ detected)"
