@@ -41,6 +41,13 @@ echo "  Pre-Deploy Verification"
 echo "  Stack: $LANG | Backend: $BACKEND | Frontend: $FRONTEND"
 echo "═══════════════════════════════════════════════"
 
+if [ "${SAASCODE_VERBOSE:-0}" = "1" ]; then
+  echo ""
+  echo -e "  ${CYAN}[verbose]${NC} API URL: $API_URL"
+  echo -e "  ${CYAN}[verbose]${NC} Language: $LANG"
+  echo ""
+fi
+
 gate() {
   local NAME="$1"
   local STATUS="$2" # pass, fail, warn, skip

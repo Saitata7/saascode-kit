@@ -1,0 +1,301 @@
+# SaasCode Kit — GitLab CI/CD Pipeline
+# Runs on every MR and main branch push: build, test, security scan, review
+# Paths are substituted from manifest.yaml during `saascode init`
+
+stages:
+  - build
+  - test
+  - security
+  - review
+
+variables:
+  BACKEND_PATH: "{{paths.backend}}"
+  FRONTEND_PATH: "{{paths.frontend}}"
+  API_CLIENT_PATH: "{{paths.api_client}}"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# ─── Build & Type Check ───
+
+build:
+  stage: build
+{{#if_eq stack.language "typescript"}}
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm run typecheck
+    - npm --prefix $BACKEND_PATH run build 2>/dev/null || npm run build
+    - npm --prefix $FRONTEND_PATH run build 2>/dev/null || npm run build:frontend 2>/dev/null || true
+{{/if_eq}}
+{{#if_eq stack.language "javascript"}}
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm --prefix $BACKEND_PATH run build 2>/dev/null || npm run build
+    - npm --prefix $FRONTEND_PATH run build 2>/dev/null || true
+{{/if_eq}}
+{{#if_eq stack.language "python"}}
+  image: python:3.12-slim
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .pip-cache/
+  script:
+    - pip install --cache-dir .pip-cache -r requirements.txt
+    - mypy . --ignore-missing-imports 2>/dev/null || echo "mypy not configured"
+{{/if_eq}}
+{{#if_eq stack.language "go"}}
+  image: golang:1.22-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - /go/pkg/mod/
+  script:
+    - go mod download
+    - go vet ./...
+    - go build ./...
+{{/if_eq}}
+{{#if_eq stack.language "java"}}
+  image: maven:3.9-eclipse-temurin-21
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .m2/repository/
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  script:
+    - |
+      if [ -f "mvnw" ]; then ./mvnw -q package -DskipTests
+      elif [ -f "gradlew" ]; then ./gradlew build -x test
+      else echo "No build tool found"; fi
+{{/if_eq}}
+{{#if_eq stack.language "ruby"}}
+  image: ruby:3.3
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - vendor/bundle/
+  script:
+    - bundle config set --local path vendor/bundle
+    - bundle install --jobs $(nproc)
+{{/if_eq}}
+{{#if_eq stack.language "rust"}}
+  image: rust:1.77
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - target/
+  script:
+    - cargo check
+    - cargo build --release
+{{/if_eq}}
+{{#if_eq stack.language "php"}}
+  image: php:8.3-cli
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - vendor/
+  before_script:
+    - apt-get update && apt-get install -y unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+  script:
+    - composer install --no-dev --no-interaction
+{{/if_eq}}
+
+# ─── Tests ───
+
+test:
+  stage: test
+  needs: ["build"]
+{{#if_eq stack.language "typescript"}}
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm --prefix $BACKEND_PATH run test 2>/dev/null || npm test
+{{/if_eq}}
+{{#if_eq stack.language "javascript"}}
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm test
+{{/if_eq}}
+{{#if_eq stack.language "python"}}
+  image: python:3.12-slim
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .pip-cache/
+  script:
+    - pip install --cache-dir .pip-cache -r requirements.txt
+    - python -m pytest 2>/dev/null || python manage.py test
+{{/if_eq}}
+{{#if_eq stack.language "go"}}
+  image: golang:1.22-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - /go/pkg/mod/
+  script:
+    - go mod download
+    - go test ./...
+{{/if_eq}}
+{{#if_eq stack.language "java"}}
+  image: maven:3.9-eclipse-temurin-21
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .m2/repository/
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  script:
+    - |
+      if [ -f "mvnw" ]; then ./mvnw test
+      elif [ -f "gradlew" ]; then ./gradlew test
+      else echo "No test runner found"; fi
+{{/if_eq}}
+{{#if_eq stack.language "ruby"}}
+  image: ruby:3.3
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - vendor/bundle/
+  script:
+    - bundle config set --local path vendor/bundle
+    - bundle install --jobs $(nproc)
+    - bundle exec rspec 2>/dev/null || bundle exec rails test
+{{/if_eq}}
+{{#if_eq stack.language "rust"}}
+  image: rust:1.77
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - target/
+  script:
+    - cargo test
+{{/if_eq}}
+{{#if_eq stack.language "php"}}
+  image: php:8.3-cli
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - vendor/
+  before_script:
+    - apt-get update && apt-get install -y unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+  script:
+    - composer install --no-interaction
+    - ./vendor/bin/phpunit
+{{/if_eq}}
+
+# ─── Security Scan ───
+
+security:
+  stage: security
+  allow_failure: true
+{{#if_eq stack.language "typescript"}}
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm audit --audit-level=high || true
+{{/if_eq}}
+{{#if_eq stack.language "javascript"}}
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  script:
+    - npm ci
+    - npm audit --audit-level=high || true
+{{/if_eq}}
+{{#if_eq stack.language "python"}}
+  image: python:3.12-slim
+  script:
+    - pip install pip-audit 2>/dev/null || true
+    - pip-audit 2>/dev/null || echo "pip-audit not available"
+{{/if_eq}}
+{{#if_eq stack.language "go"}}
+  image: golang:1.22-alpine
+  script:
+    - go install golang.org/x/vuln/cmd/govulncheck@latest
+    - govulncheck ./... || true
+{{/if_eq}}
+{{#if_eq stack.language "java"}}
+  image: maven:3.9-eclipse-temurin-21
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  script:
+    - |
+      if [ -f "mvnw" ]; then ./mvnw org.owasp:dependency-check-maven:check 2>/dev/null || echo "OWASP plugin not configured"
+      else echo "Skipping dependency check"; fi
+{{/if_eq}}
+{{#if_eq stack.language "ruby"}}
+  image: ruby:3.3
+  script:
+    - gem install bundler-audit
+    - bundle-audit check --update || true
+{{/if_eq}}
+{{#if_eq stack.language "rust"}}
+  image: rust:1.77
+  script:
+    - cargo install cargo-audit
+    - cargo audit || true
+{{/if_eq}}
+{{#if_eq stack.language "php"}}
+  image: php:8.3-cli
+  before_script:
+    - apt-get update && apt-get install -y unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+  script:
+    - composer audit || true
+{{/if_eq}}
+
+semgrep:
+  stage: security
+  image: semgrep/semgrep:latest
+  allow_failure: true
+  script:
+    - semgrep ci --config .saascode/rules/ || true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ─── Pattern Review ───
+
+review:
+  stage: review
+  image: node:20-alpine
+  allow_failure: true
+  script:
+    - |
+      if [ -f ".saascode/scripts/ast-review.sh" ]; then
+        bash .saascode/scripts/ast-review.sh || true
+      else
+        echo "AST review not installed — run saascode init"
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

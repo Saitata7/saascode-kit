@@ -1,3 +1,8 @@
+---
+name: security-audit
+description: Run security and quality audit on codebase. Use when user says "audit", "security scan", "check vulnerabilities", or "/audit". Do NOT use for code review of specific changes (use /review instead).
+---
+
 # Skill: Security & Quality Audit
 
 > Trigger: /audit [feature-name|module-name|"full"]

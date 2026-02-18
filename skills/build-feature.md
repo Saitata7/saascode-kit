@@ -1,3 +1,8 @@
+---
+name: build-feature
+description: Build a complete feature end-to-end with schema, backend, frontend, and validation. Use when user says "build feature", "implement feature", "add feature", or "/build". Do NOT use for bug fixes (use /debug) or refactoring.
+---
+
 # Skill: Build Feature End-to-End
 
 > Trigger: /build [feature-name]

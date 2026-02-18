@@ -1,3 +1,8 @@
+---
+name: code-recipe
+description: Generate pre-built code templates for CRUD modules, endpoints, pages, forms, modals, and settings. Use when user says "recipe", "scaffold", "generate CRUD", "boilerplate", or "/recipe". Do NOT use for full feature builds (use /build instead).
+---
+
 # Skill: Prompt Recipes
 
 > Trigger: /recipe [recipe-name]

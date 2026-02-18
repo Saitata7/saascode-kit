@@ -1167,6 +1167,79 @@ cmd_antigravity() {
   echo -e "  ${GREEN}${BOLD}Installed $INSTALLED files for Google Antigravity.${NC}"
 }
 
+cmd_cline() {
+  echo -e "${BOLD}Installing Cline config...${NC}"
+  echo ""
+
+  local KIT_DIR
+  KIT_DIR="$(find_kit_dir "$ROOT")"
+  local MANIFEST="$KIT_DIR/manifest.yaml"
+
+  if [ ! -f "$MANIFEST" ] && [ -f "$ROOT/saascode-kit.yaml" ]; then
+    cp "$ROOT/saascode-kit.yaml" "$MANIFEST"
+  fi
+
+  if [ ! -f "$MANIFEST" ]; then
+    echo -e "${RED}Error: manifest.yaml not found${NC}"
+    echo "Run first: npx kit init"
+    exit 1
+  fi
+
+  load_manifest_vars "$MANIFEST"
+  local INSTALLED=0
+
+  # .clinerules from template
+  if [ -f "$KIT_DIR/templates/clinerules.md.template" ]; then
+    cp "$KIT_DIR/templates/clinerules.md.template" "$ROOT/.clinerules"
+    replace_placeholders "$ROOT/.clinerules"
+    process_conditionals "$ROOT/.clinerules"
+    echo -e "  ${GREEN}✓${NC} .clinerules"
+    INSTALLED=$((INSTALLED + 1))
+  else
+    echo -e "  ${RED}✗${NC} templates/clinerules.md.template not found"
+  fi
+
+  echo ""
+  echo -e "  ${GREEN}${BOLD}Installed $INSTALLED files for Cline.${NC}"
+}
+
+cmd_continue() {
+  echo -e "${BOLD}Installing Continue config...${NC}"
+  echo ""
+
+  local KIT_DIR
+  KIT_DIR="$(find_kit_dir "$ROOT")"
+  local MANIFEST="$KIT_DIR/manifest.yaml"
+
+  if [ ! -f "$MANIFEST" ] && [ -f "$ROOT/saascode-kit.yaml" ]; then
+    cp "$ROOT/saascode-kit.yaml" "$MANIFEST"
+  fi
+
+  if [ ! -f "$MANIFEST" ]; then
+    echo -e "${RED}Error: manifest.yaml not found${NC}"
+    echo "Run first: npx kit init"
+    exit 1
+  fi
+
+  load_manifest_vars "$MANIFEST"
+  local INSTALLED=0
+
+  # .continue/rules/project-rules.md from template
+  if [ -f "$KIT_DIR/templates/continue-rules.md.template" ]; then
+    mkdir -p "$ROOT/.continue/rules"
+    cp "$KIT_DIR/templates/continue-rules.md.template" "$ROOT/.continue/rules/project-rules.md"
+    replace_placeholders "$ROOT/.continue/rules/project-rules.md"
+    process_conditionals "$ROOT/.continue/rules/project-rules.md"
+    echo -e "  ${GREEN}✓${NC} .continue/rules/project-rules.md"
+    INSTALLED=$((INSTALLED + 1))
+  else
+    echo -e "  ${RED}✗${NC} templates/continue-rules.md.template not found"
+  fi
+
+  echo ""
+  echo -e "  ${GREEN}${BOLD}Installed $INSTALLED files for Continue.${NC}"
+}
+
 cmd_copilot() {
   echo -e "${BOLD}Installing GitHub Copilot config...${NC}"
   echo ""
@@ -1269,6 +1342,8 @@ cmd_help() {
   printf "  %-28s %s\n" "kitcursor" "Install Cursor config (.cursorrules, rules)"
   printf "  %-28s %s\n" "kitwindsurf" "Install Windsurf config (.windsurfrules)"
   printf "  %-28s %s\n" "kitantigravity" "Install Google Antigravity config (.agent/rules/)"
+  printf "  %-28s %s\n" "kitcline" "Install Cline config (.clinerules)"
+  printf "  %-28s %s\n" "kitcontinue" "Install Continue config (.continue/rules/)"
   printf "  %-28s %s\n" "kitcopilot" "Install GitHub Copilot config"
   printf "  %-28s %s\n" "kitaider" "Install Aider config (CONVENTIONS.md)"
   echo ""
@@ -1331,6 +1406,9 @@ cmd_help() {
   printf "  %-28s %s\n" "/docs [init|full|feature]" "Organize documentation"
   printf "  %-28s %s\n" "/prd" "Product Brief from existing project"
   printf "  %-28s %s\n" "/prd [idea]" "Product Brief from new idea"
+  printf "  %-28s %s\n" "/design [feature|system|ui]" "Design document (architecture, UI, API)"
+  printf "  %-28s %s\n" "/techstack [topic]" "Tech stack decisions (ADRs)"
+  printf "  %-28s %s\n" "/todo [feature|sprint]" "Task breakdown & planning"
   printf "  %-28s %s\n" "/api [all|module|postman]" "Generate API reference"
   printf "  %-28s %s\n" "/migrate [plan|apply]" "Database migration workflow"
   printf "  %-28s %s\n" "/deploy [env|rollback]" "Deployment guide"
@@ -1351,6 +1429,17 @@ cmd_help() {
   echo ""
 }
 
+# ─── Parse global flags ───
+
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --verbose|-v) export SAASCODE_VERBOSE=1 ;;
+    *) ARGS+=("$arg") ;;
+  esac
+done
+set -- "${ARGS[@]}"
+
 # ─── Route command ───
 
 COMMAND="${1:-help}"
@@ -1362,6 +1451,8 @@ case "$COMMAND" in
   cursor)     cmd_cursor "$@" ;;
   windsurf)   cmd_windsurf "$@" ;;
   antigravity) cmd_antigravity "$@" ;;
+  cline)      cmd_cline "$@" ;;
+  continue)   cmd_continue "$@" ;;
   copilot)    cmd_copilot "$@" ;;
   aider)      cmd_aider "$@" ;;
   review)     cmd_review "$@" ;;

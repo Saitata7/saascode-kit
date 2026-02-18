@@ -23,6 +23,7 @@
     "manifest.example.yaml",
     "README.md",
     "SETUP.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "keywords": [

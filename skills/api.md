@@ -1,3 +1,8 @@
+---
+name: api-reference
+description: Generate API reference documentation from codebase. Use when user says "document API", "API reference", "generate API docs", "postman collection", or "/api". Do NOT use for API design from scratch (use /design api instead).
+---
+
 # Skill: API Documentation
 
 > Trigger: /api [module-name|"all"|"postman"]

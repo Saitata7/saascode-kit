@@ -47,6 +47,15 @@ echo "  Backend: $BACKEND | Frontend: $FRONTEND"
 echo "  Stack: $LANG / $BE_FW / $FE_FW / $ORM_NAME"
 echo "═══════════════════════════════════════════════"
 
+if [ "${SAASCODE_VERBOSE:-0}" = "1" ]; then
+  echo ""
+  echo -e "  ${CYAN}[verbose]${NC} API client: $API_CLIENT"
+  echo -e "  ${CYAN}[verbose]${NC} ORM: $ORM_NAME"
+  echo -e "  ${CYAN}[verbose]${NC} Source extensions: $SRC_EXT"
+  echo -e "  ${CYAN}[verbose]${NC} Tenancy enabled: $TENANCY_ENABLED"
+  echo ""
+fi
+
 # ─── Helper ───
 check() {
   local LABEL="$1"

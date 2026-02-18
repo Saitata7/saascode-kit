@@ -1,3 +1,8 @@
+---
+name: documentation
+description: Organize and generate project documentation including setup guides and feature docs. Use when user says "document", "write docs", "organize docs", or "/docs". Do NOT use for API docs (use /api) or changelogs (use /changelog).
+---
+
 # Skill: Documentation Organizer
 
 > Trigger: /docs [feature-name|"full"|"init"]

@@ -1,3 +1,8 @@
+---
+name: product-brief
+description: Generate implementation-ready Product Brief with entities, relationships, domain rules, state machines, and flows. Use when user says "PRD", "product brief", "product spec", "plan the product", or "/prd". Do NOT use for technical design (use /design) or task planning (use /todo).
+---
+
 # Skill: Product Brief Generator
 
 > Trigger: /prd or /prd [idea]

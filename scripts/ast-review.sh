@@ -95,6 +95,16 @@ export SAASCODE_OUTPUT_FORMAT="$OUTPUT_FORMAT"
 
 LANG=$(detect_language)
 
+# ── Verbose output ──
+if [ "${SAASCODE_VERBOSE:-0}" = "1" ]; then
+  echo -e "${CYAN}[verbose]${NC} Project root: $PROJECT_ROOT"
+  echo -e "${CYAN}[verbose]${NC} Script dir: $SCRIPT_DIR"
+  echo -e "${CYAN}[verbose]${NC} Detected language: $LANG"
+  echo -e "${CYAN}[verbose]${NC} Output format: $OUTPUT_FORMAT"
+  echo -e "${CYAN}[verbose]${NC} Args: $*"
+  echo ""
+fi
+
 # ── Dispatch to language-specific reviewer ──
 case "$LANG" in
   typescript)

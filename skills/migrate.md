@@ -1,3 +1,8 @@
+---
+name: database-migration
+description: Safe database schema migration workflow with plan, generate, apply, verify, and rollback steps. Use when user says "migrate", "schema change", "add column", "database migration", or "/migrate". Do NOT use for query optimization or data analysis.
+---
+
 # Skill: Database Migration Workflow
 
 > Trigger: /migrate [action]

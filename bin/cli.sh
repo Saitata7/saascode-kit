@@ -48,6 +48,8 @@ show_help() {
   printf "  %-28s %s\n" "kitcursor" "Install Cursor config (.cursorrules, rules)"
   printf "  %-28s %s\n" "kitwindsurf" "Install Windsurf config (.windsurfrules)"
   printf "  %-28s %s\n" "kitantigravity" "Install Google Antigravity config"
+  printf "  %-28s %s\n" "kitcline" "Install Cline config (.clinerules)"
+  printf "  %-28s %s\n" "kitcontinue" "Install Continue config (.continue/rules/)"
   printf "  %-28s %s\n" "kitcopilot" "Install GitHub Copilot config"
   printf "  %-28s %s\n" "kitaider" "Install Aider config (CONVENTIONS.md)"
   echo ""

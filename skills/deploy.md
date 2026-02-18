@@ -1,3 +1,8 @@
+---
+name: deployment-guide
+description: Step-by-step deployment workflow with pre-deploy gates, migrations, and rollback. Use when user says "deploy", "release", "push to production", "rollback", or "/deploy". Do NOT use for CI/CD pipeline setup (configure in manifest instead).
+---
+
 # Skill: Deployment Guide
 
 > Trigger: /deploy [environment|"status"|"rollback"]

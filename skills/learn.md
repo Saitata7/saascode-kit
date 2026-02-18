@@ -1,3 +1,8 @@
+---
+name: learn-pattern
+description: Capture bug patterns and learnings into LEARNINGS.md for self-improvement. Use when user says "learn from this", "remember this pattern", "add to learnings", or "/learn". Do NOT use for debugging active issues (use /debug instead).
+---
+
 # Skill: Self-Improvement
 
 > Trigger: /learn [finding|"review"|"sync"]

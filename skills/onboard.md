@@ -1,3 +1,8 @@
+---
+name: developer-onboarding
+description: Generate developer setup and onboarding guide by detecting stack and creating verification script. Use when user says "onboard", "setup guide", "new developer", or "/onboard". Do NOT use for end-user onboarding flows.
+---
+
 # Skill: Developer Onboarding
 
 > Trigger: /onboard [action]

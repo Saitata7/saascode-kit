@@ -1,3 +1,8 @@
+---
+name: preflight-check
+description: Pre-deployment checklist covering build gates, tests, security, endpoint parity, and health checks. Use when user says "preflight", "ready to deploy", "pre-deploy check", or "/preflight". Do NOT use for full audit (use /audit) or deployment execution (use /deploy).
+---
+
 # Skill: Pre-Deploy Preflight Check
 
 > Trigger: /preflight

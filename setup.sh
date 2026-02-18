@@ -325,8 +325,31 @@ if [ "$INSTALL_CI" = true ]; then
 
     echo "  ${GREEN}✓${NC} .github/workflows/saascode.yml (language: $LANGUAGE)"
     INSTALLED=$((INSTALLED + 1))
+  elif [ "$CI_TRIMMED" = "gitlab" ]; then
+    cp "$KIT_DIR/ci/gitlab-ci.yml.template" "$TARGET/.gitlab-ci.yml"
+
+    process_conditionals "$TARGET/.gitlab-ci.yml"
+    replace_placeholders "$TARGET/.gitlab-ci.yml"
+
+    echo "  ${GREEN}✓${NC} .gitlab-ci.yml (language: $LANGUAGE)"
+    INSTALLED=$((INSTALLED + 1))
   else
-    echo "  ${YELLOW}⚠ CI provider '$CI_PROVIDER' — only GitHub Actions supported in v1${NC}"
+    echo "  ${YELLOW}⚠ CI provider '$CI_PROVIDER' — supported: github, gitlab${NC}"
+  fi
+
+  # Also generate GitLab CI if .gitlab-ci.yml already exists or GitLab remote detected
+  if [ "$CI_TRIMMED" != "gitlab" ]; then
+    local IS_GITLAB=false
+    git -C "$TARGET" remote -v 2>/dev/null | grep -q "gitlab" && IS_GITLAB=true
+    [ -f "$TARGET/.gitlab-ci.yml" ] && IS_GITLAB=true
+
+    if [ "$IS_GITLAB" = true ] && [ -f "$KIT_DIR/ci/gitlab-ci.yml.template" ]; then
+      cp "$KIT_DIR/ci/gitlab-ci.yml.template" "$TARGET/.gitlab-ci.yml"
+      process_conditionals "$TARGET/.gitlab-ci.yml"
+      replace_placeholders "$TARGET/.gitlab-ci.yml"
+      echo "  ${GREEN}✓${NC} .gitlab-ci.yml (auto-detected GitLab, language: $LANGUAGE)"
+      INSTALLED=$((INSTALLED + 1))
+    fi
   fi
 fi
 

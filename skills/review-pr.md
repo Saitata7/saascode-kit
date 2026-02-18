@@ -1,3 +1,8 @@
+---
+name: code-review
+description: Code review covering security, quality, tenant isolation, AI safety, and endpoint parity. Use when user says "review", "PR review", "code review", "check my code", or "/review". Do NOT use for full security audit (use /audit) or pre-deploy checks (use /preflight).
+---
+
 # Skill: PR Code Review
 
 > Trigger: /review [pr-number|file-path|"staged"]

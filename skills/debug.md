@@ -1,3 +1,8 @@
+---
+name: debug-issue
+description: Systematically trace and resolve bugs using classification and root cause analysis. Use when user says "debug", "fix bug", "error", "not working", "500 error", or "/debug". Do NOT use for building new features (use /build instead).
+---
+
 # Skill: Debug & Investigate
 
 > Trigger: /debug [error-message|symptom|"crash"|"slow"|"404"|"500"]
