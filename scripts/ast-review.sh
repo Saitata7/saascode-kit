@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — AST Code Review (language dispatcher)
+# Kit — AST Code Review (language dispatcher)
 # Routes to the correct AST reviewer based on project language.
 #
 # Usage: saascode review  OR  bash ast-review.sh [--changed-only]

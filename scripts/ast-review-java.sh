@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Java AST Code Review
+# Kit — Java AST Code Review
 # Pure bash + grep/awk — no external parser required.
 # Mirrors ast-review.ts output format (table, verdict, exit codes).
 #

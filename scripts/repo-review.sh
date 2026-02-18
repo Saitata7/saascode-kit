@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Repo-Level Code Review
+# Kit — Repo-Level Code Review
 # Scans the full codebase for cross-module issues:
 #   1. Circular imports / circular dependencies
 #   2. Unused exports (exported but never imported elsewhere)

@@ -1,4 +1,4 @@
-# Contributing to SaasCode Kit
+# Contributing to Kit
 
 First off, thanks for considering contributing! This kit is open-source and community contributions make it better for everyone.
 
@@ -45,7 +45,7 @@ First off, thanks for considering contributing! This kit is open-source and comm
 ### Testing
 
 There's no automated test suite yet (contributions welcome!). For now:
-- Test npx flow: `npx saascode-kit init` in an empty directory (two-step: create manifest, then install)
+- Test npx flow: `npx kit init` in an empty directory (two-step: create manifest, then install)
 - Test `saascode init` end-to-end with a sample project
 - Test individual IDE commands (`saascode claude`, `saascode cursor`, `saascode windsurf`)
 - Verify template placeholders are replaced correctly

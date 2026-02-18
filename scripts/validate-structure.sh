@@ -1,5 +1,5 @@
 #!/bin/bash
-# Validates saascode-kit directory structure
+# Validates kit directory structure
 # Detects unwanted files created by AI agents
 
 set -e
@@ -12,7 +12,7 @@ NC='\033[0m'
 ISSUES_FOUND=0
 
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║  SaasCode Kit — Structure Validation                      ║"
+echo "║  Kit — Structure Validation                      ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 

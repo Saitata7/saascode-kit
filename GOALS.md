@@ -10,7 +10,7 @@ The result:
 - You spend more time reviewing and fixing than you saved
 - Every developer on your team gets different quality from the same AI tool
 
-**SaasCode Kit gives the AI your project's rules upfront, so it gets things right the first time.**
+**Kit gives the AI your project's rules upfront, so it gets things right the first time.**
 
 ---
 
@@ -85,7 +85,7 @@ Know what the AI changed, when, and why. Essential for teams, compliance, and de
 
 ### 10. Stealth Mode
 
-Some teams don't want to reveal their tooling. Cloak mode removes every trace of saascode-kit and AI tools from the repo -- renames directories, strips branding, stashes config files. Nobody can tell you're using it.
+Some teams don't want to reveal their tooling. Cloak mode removes every trace of kit and AI tools from the repo -- renames directories, strips branding, stashes config files. Nobody can tell you're using it.
 
 **How:** `saascode cloak` renames `.saascode/` to a neutral name (default `.devkit`), strips all "saascode" references from scripts/hooks/CI, and stashes `.claude/`, `.cursor/`, `.cursorrules`, `.windsurfrules`, `CLAUDE.md`. Everything still works. `saascode uncloak` reverses it.
 
@@ -152,7 +152,7 @@ Some teams don't want to reveal their tooling. Cloak mode removes every trace of
 - **SaaS-oriented** -- Built for SaaS patterns (auth, API endpoints, data scoping). Less useful for other project types
 - **Shell-based CLI** -- Requires bash/zsh. No native Windows support (use WSL)
 - **No dashboard** -- No web UI or team analytics dashboard. CLI and log files only
-- **Manual manifest** -- You fill out the manifest once, but it's manual. `npx saascode-kit init` creates a template to get started quickly
+- **Manual manifest** -- You fill out the manifest once, but it's manual. `npx kit init` creates a template to get started quickly
 
 ---
 
@@ -162,31 +162,31 @@ Some teams don't want to reveal their tooling. Cloak mode removes every trace of
 
 Cloud platforms offer PR-level review with inline comments, team dashboards, and multi-language support across 30+ languages. They're strong for large teams that need centralized reporting.
 
-**SaasCode Kit is different:** It works _while you code_, not just at PR time. It knows your project's specific patterns because you configure them in the manifest. Cloud platforms use generic rules -- they can't know that your auth guard order matters or that every query needs a specific scoping field.
+**Kit is different:** It works _while you code_, not just at PR time. It knows your project's specific patterns because you configure them in the manifest. Cloud platforms use generic rules -- they can't know that your auth guard order matters or that every query needs a specific scoping field.
 
-**Trade-off:** Cloud platforms have broader language coverage and team analytics. SaasCode Kit has deeper project-specific coverage and catches issues earlier in the development cycle.
+**Trade-off:** Cloud platforms have broader language coverage and team analytics. Kit has deeper project-specific coverage and catches issues earlier in the development cycle.
 
 ### vs. IDE Static Analysis Extensions
 
 IDE extensions provide real-time feedback using generic rule sets. They're excellent for standard code quality -- unused variables, type errors, common security patterns.
 
-**SaasCode Kit adds a layer on top:** Project-specific rules that no generic extension can provide. "This controller is missing a required guard" or "this query isn't properly scoped" -- these are patterns unique to your project's architecture.
+**Kit adds a layer on top:** Project-specific rules that no generic extension can provide. "This controller is missing a required guard" or "this query isn't properly scoped" -- these are patterns unique to your project's architecture.
 
-**Trade-off:** IDE extensions cover more languages and have mature ecosystems. SaasCode Kit handles the patterns that are specific to your project.
+**Trade-off:** IDE extensions cover more languages and have mature ecosystems. Kit handles the patterns that are specific to your project.
 
 ### vs. AI-Powered Review Tools
 
 AI review tools use LLMs to analyze code semantically. They catch logical issues that pattern matching can't.
 
-**SaasCode Kit includes AI review** (`saascode review --ai`) using free-tier LLMs. But it also adds deterministic checks (AST parsing, pattern matching) that don't depend on LLM quality or availability. A missing auth guard is a missing auth guard -- you don't need AI to determine that.
+**Kit includes AI review** (`saascode review --ai`) using free-tier LLMs. But it also adds deterministic checks (AST parsing, pattern matching) that don't depend on LLM quality or availability. A missing auth guard is a missing auth guard -- you don't need AI to determine that.
 
-**Trade-off:** Dedicated AI review tools have more sophisticated LLM pipelines. SaasCode Kit combines deterministic + AI approaches at zero cost.
+**Trade-off:** Dedicated AI review tools have more sophisticated LLM pipelines. Kit combines deterministic + AI approaches at zero cost.
 
 ### vs. Building Your Own Rules
 
 You could write custom ESLint rules, Semgrep configs, and shell scripts from scratch. Many teams do.
 
-**SaasCode Kit is that, pre-built.** 5 Semgrep rule sets, 14 skills, git hooks, CI pipeline, and a CLI -- all generated from one manifest. Building this from scratch takes weeks. The kit takes one command (`npx saascode-kit init`).
+**Kit is that, pre-built.** 5 Semgrep rule sets, 14 skills, git hooks, CI pipeline, and a CLI -- all generated from one manifest. Building this from scratch takes weeks. The kit takes one command (`npx kit init`).
 
 **Trade-off:** Custom rules are exactly tailored. The kit provides 80% coverage out of the box, and you can customize the remaining 20%.
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Ruby/Rails AST Code Review
+# Kit — Ruby/Rails AST Code Review
 # Pure bash + grep/awk — no external parser required.
 # Mirrors ast-review-java.sh output format (table, verdict, exit codes).
 #

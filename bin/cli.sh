@@ -3,14 +3,14 @@
 # SaasCode Kit CLI — Entry point for npx
 #
 # Usage:
-#   npx saascode-kit <command> [options]
+#   npx kit <command> [options]
 #
 # Examples:
-#   npx saascode-kit init              # Set up kit in current project
-#   npx saascode-kit review            # AST code review
-#   npx saascode-kit audit             # Full security audit
-#   npx saascode-kit docs --diagrams   # Generate docs with diagrams
-#   npx saascode-kit help              # Show all commands
+#   npx kit init              # Set up kit in current project
+#   npx kit review            # AST code review
+#   npx kit audit             # Full security audit
+#   npx kit docs --diagrams   # Generate docs with diagrams
+#   npx kit help              # Show all commands
 # ═══════════════════════════════════════════════════════════
 
 # Resolve symlinks (npx creates symlinks in node_modules/.bin/)
@@ -37,44 +37,44 @@ show_help() {
   echo -e "${BOLD}COMMANDS${NC}"
   echo ""
   echo -e "  ${CYAN}Setup:${NC}"
-  printf "  %-28s %s\n" "saascode-kit init" "Set up kit in current project"
-  printf "  %-28s %s\n" "saascode-kit init /path" "Set up kit in specific project"
-  printf "  %-28s %s\n" "saascode-kit update" "Sync kit source → installed locations"
-  printf "  %-28s %s\n" "saascode-kit verify" "Verify development environment setup"
-  printf "  %-28s %s\n" "saascode-kit status" "Show kit installation status"
+  printf "  %-28s %s\n" "kitinit" "Set up kit in current project"
+  printf "  %-28s %s\n" "kitinit /path" "Set up kit in specific project"
+  printf "  %-28s %s\n" "kitupdate" "Sync kit source → installed locations"
+  printf "  %-28s %s\n" "kitverify" "Verify development environment setup"
+  printf "  %-28s %s\n" "kitstatus" "Show kit installation status"
   echo ""
   echo -e "  ${CYAN}IDE Setup:${NC}"
-  printf "  %-28s %s\n" "saascode-kit claude" "Install Claude Code config (CLAUDE.md, skills, hooks)"
-  printf "  %-28s %s\n" "saascode-kit cursor" "Install Cursor config (.cursorrules, rules)"
-  printf "  %-28s %s\n" "saascode-kit windsurf" "Install Windsurf config (.windsurfrules)"
-  printf "  %-28s %s\n" "saascode-kit antigravity" "Install Google Antigravity config"
-  printf "  %-28s %s\n" "saascode-kit copilot" "Install GitHub Copilot config"
-  printf "  %-28s %s\n" "saascode-kit aider" "Install Aider config (CONVENTIONS.md)"
+  printf "  %-28s %s\n" "kitclaude" "Install Claude Code config (CLAUDE.md, skills, hooks)"
+  printf "  %-28s %s\n" "kitcursor" "Install Cursor config (.cursorrules, rules)"
+  printf "  %-28s %s\n" "kitwindsurf" "Install Windsurf config (.windsurfrules)"
+  printf "  %-28s %s\n" "kitantigravity" "Install Google Antigravity config"
+  printf "  %-28s %s\n" "kitcopilot" "Install GitHub Copilot config"
+  printf "  %-28s %s\n" "kitaider" "Install Aider config (CONVENTIONS.md)"
   echo ""
   echo -e "  ${CYAN}Code Review:${NC}"
-  printf "  %-28s %s\n" "saascode-kit review" "AST-based code review (ts-morph)"
-  printf "  %-28s %s\n" "saascode-kit review --ai" "AI-powered review (auto-detects provider)"
-  printf "  %-28s %s\n" "saascode-kit check-file <path>" "Single-file validator"
+  printf "  %-28s %s\n" "kitreview" "AST-based code review (ts-morph)"
+  printf "  %-28s %s\n" "kitreview --ai" "AI-powered review (auto-detects provider)"
+  printf "  %-28s %s\n" "kitcheck-file <path>" "Single-file validator"
   echo ""
   echo -e "  ${CYAN}Analysis:${NC}"
-  printf "  %-28s %s\n" "saascode-kit audit" "Run full security + quality audit"
-  printf "  %-28s %s\n" "saascode-kit parity" "Check frontend-backend endpoint parity"
-  printf "  %-28s %s\n" "saascode-kit snapshot" "Generate project-map.md from codebase"
-  printf "  %-28s %s\n" "saascode-kit docs" "Quick project overview (directory tree + stack)"
-  printf "  %-28s %s\n" "saascode-kit docs --full" "Full docs (models, endpoints, pages, components)"
-  printf "  %-28s %s\n" "saascode-kit docs --diagrams" "Add Mermaid architecture diagrams"
-  printf "  %-28s %s\n" "saascode-kit docs --prd" "Product Brief from existing project"
-  printf "  %-28s %s\n" "saascode-kit docs --prd \"idea\"" "Product Brief from new idea"
+  printf "  %-28s %s\n" "kitaudit" "Run full security + quality audit"
+  printf "  %-28s %s\n" "kitparity" "Check frontend-backend endpoint parity"
+  printf "  %-28s %s\n" "kitsnapshot" "Generate project-map.md from codebase"
+  printf "  %-28s %s\n" "kitdocs" "Quick project overview (directory tree + stack)"
+  printf "  %-28s %s\n" "kitdocs --full" "Full docs (models, endpoints, pages, components)"
+  printf "  %-28s %s\n" "kitdocs --diagrams" "Add Mermaid architecture diagrams"
+  printf "  %-28s %s\n" "kitdocs --prd" "Product Brief from existing project"
+  printf "  %-28s %s\n" "kitdocs --prd \"idea\"" "Product Brief from new idea"
   echo ""
   echo -e "  ${CYAN}Deployment:${NC}"
-  printf "  %-28s %s\n" "saascode-kit predeploy" "Run pre-deployment gates"
-  printf "  %-28s %s\n" "saascode-kit checklist [name]" "Show a checklist"
+  printf "  %-28s %s\n" "kitpredeploy" "Run pre-deployment gates"
+  printf "  %-28s %s\n" "kitchecklist [name]" "Show a checklist"
   echo ""
   echo -e "  ${CYAN}Info:${NC}"
-  printf "  %-28s %s\n" "saascode-kit rules" "List installed Semgrep rules"
-  printf "  %-28s %s\n" "saascode-kit skills" "List installed Claude Code skills"
-  printf "  %-28s %s\n" "saascode-kit intent" "View AI edit intent log"
-  printf "  %-28s %s\n" "saascode-kit help" "This help message"
+  printf "  %-28s %s\n" "kitrules" "List installed Semgrep rules"
+  printf "  %-28s %s\n" "kitskills" "List installed Claude Code skills"
+  printf "  %-28s %s\n" "kitintent" "View AI edit intent log"
+  printf "  %-28s %s\n" "kithelp" "This help message"
   echo ""
   echo -e "${DIM}Docs: https://github.com/Saitata7/saascode-kit${NC}"
   echo ""
@@ -102,7 +102,7 @@ cmd_init() {
       echo ""
       echo -e "  ${CYAN}Next steps:${NC}"
       echo "  1. Edit saascode-kit.yaml with your project details"
-      echo "  2. Run npx saascode-kit init again"
+      echo "  2. Run npx kit init again"
       echo ""
       exit 0
     else

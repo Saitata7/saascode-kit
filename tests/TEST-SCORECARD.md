@@ -1,6 +1,6 @@
-# SaasCode Kit — Universal Test Scorecard
+# Kit — Universal Test Scorecard
 
-> Tests saascode-kit commands against 16 real-world projects covering every major stack.
+> Tests kit commands against 16 real-world projects covering every major stack.
 > Goal: verify proper output, error messages, and graceful degradation for all project types.
 
 ---
@@ -42,7 +42,7 @@ For each project:
 ```
 
 **Why keep originals pristine:**
-- Can re-test with different saascode-kit versions
+- Can re-test with different kit versions
 - Can re-test with Cursor, Windsurf, or other tools
 - Can run the full suite again after bulk fixes
 - No "works on my machine" — always starts from clean clone
@@ -527,5 +527,5 @@ bash tests/run-tests.sh --category B
 - Original clones use `--depth 1` — minimal disk usage, always reusable
 - Temp copies are created fresh per test run — no state leaks between projects
 - Manifests are auto-generated based on detected project structure
-- The `saascode-kit/` directory is **symlinked** into temp copies (not copied) so bug fixes take effect immediately on re-test
+- The kit directory is **symlinked** into temp copies (not copied) so bug fixes take effect immediately on re-test
 - Commands that invoke real tools (npm audit, mvn, etc.) may time out — timeout = SKIP, not FAIL

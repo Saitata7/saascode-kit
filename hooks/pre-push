@@ -1,5 +1,5 @@
 #!/bin/sh
-# SaasCode Kit — Pre-Push Hook
+# Kit — Pre-Push Hook
 # Install: cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
 # Or use with husky: npx husky add .husky/pre-push "sh saascode-kit/hooks/pre-push"
 

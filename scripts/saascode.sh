@@ -3,10 +3,10 @@
 # SaasCode CLI — Quick access to all kit commands
 #
 # Usage:
-#   saascode-kit <command> [options]
+#   kit <command> [options]
 #
 # Also available via shell alias:
-#   alias saascode='.saascode/scripts/saascode.sh'
+#   alias kit='.saascode/scripts/saascode.sh'
 # ═══════════════════════════════════════════════════════════
 
 set -e
@@ -74,9 +74,9 @@ cmd_init() {
   if [ -f "$KIT/setup.sh" ]; then
     bash "$KIT/setup.sh" "$ROOT"
   else
-    echo -e "${RED}Error: saascode-kit/setup.sh not found${NC}"
+    echo -e "${RED}Error: kit setup.sh not found${NC}"
     echo ""
-    echo "Make sure the saascode-kit directory is in your project root."
+    echo "Make sure the kit directory (saascode-kit/) is in your project root."
     exit 1
   fi
 }
@@ -760,7 +760,7 @@ cmd_uncloak() {
 cmd_check_file() {
   local FILE="${1}"
   if [ -z "$FILE" ]; then
-    echo "Usage: saascode-kit check-file <filepath>"
+    echo "Usage: kit check-file <filepath>"
     exit 1
   fi
   bash "$SCRIPTS_DIR/check-file.sh" "$FILE"
@@ -972,9 +972,9 @@ cmd_claude() {
   if [ ! -f "$MANIFEST" ]; then
     echo -e "${RED}Error: manifest.yaml not found${NC}"
     echo ""
-    echo "Run first:  npx saascode-kit init"
+    echo "Run first:  npx kit init"
     echo "Then edit:  saascode-kit.yaml"
-    echo "Then retry: npx saascode-kit claude"
+    echo "Then retry: npx kit claude"
     exit 1
   fi
 
@@ -1049,7 +1049,7 @@ cmd_cursor() {
 
   if [ ! -f "$MANIFEST" ]; then
     echo -e "${RED}Error: manifest.yaml not found${NC}"
-    echo "Run first: npx saascode-kit init"
+    echo "Run first: npx kit init"
     exit 1
   fi
 
@@ -1109,7 +1109,7 @@ cmd_windsurf() {
 
   if [ ! -f "$MANIFEST" ]; then
     echo -e "${RED}Error: manifest.yaml not found${NC}"
-    echo "Run first: npx saascode-kit init"
+    echo "Run first: npx kit init"
     exit 1
   fi
 
@@ -1144,7 +1144,7 @@ cmd_antigravity() {
 
   if [ ! -f "$MANIFEST" ]; then
     echo -e "${RED}Error: manifest.yaml not found${NC}"
-    echo "Run first: npx saascode-kit init"
+    echo "Run first: npx kit init"
     exit 1
   fi
 
@@ -1181,7 +1181,7 @@ cmd_copilot() {
 
   if [ ! -f "$MANIFEST" ]; then
     echo -e "${RED}Error: manifest.yaml not found${NC}"
-    echo "Run first: npx saascode-kit init"
+    echo "Run first: npx kit init"
     exit 1
   fi
 
@@ -1218,7 +1218,7 @@ cmd_aider() {
 
   if [ ! -f "$MANIFEST" ]; then
     echo -e "${RED}Error: manifest.yaml not found${NC}"
-    echo "Run first: npx saascode-kit init"
+    echo "Run first: npx kit init"
     exit 1
   fi
 
@@ -1257,71 +1257,71 @@ cmd_help() {
   echo "${BOLD}COMMANDS${NC}"
   echo ""
   echo "  ${CYAN}Setup:${NC}"
-  printf "  %-28s %s\n" "saascode-kit init" "Run setup.sh to bootstrap kit in project"
-  printf "  %-28s %s\n" "saascode-kit update" "Sync kit source → installed locations"
-  printf "  %-28s %s\n" "saascode-kit verify" "Verify development environment setup"
-  printf "  %-28s %s\n" "saascode-kit init --dry-run" "Preview what would be generated"
-  printf "  %-28s %s\n" "saascode-kit doctor" "Diagnose common setup issues"
-  printf "  %-28s %s\n" "saascode-kit status" "Show kit installation status"
+  printf "  %-28s %s\n" "kitinit" "Run setup.sh to bootstrap kit in project"
+  printf "  %-28s %s\n" "kitupdate" "Sync kit source → installed locations"
+  printf "  %-28s %s\n" "kitverify" "Verify development environment setup"
+  printf "  %-28s %s\n" "kitinit --dry-run" "Preview what would be generated"
+  printf "  %-28s %s\n" "kitdoctor" "Diagnose common setup issues"
+  printf "  %-28s %s\n" "kitstatus" "Show kit installation status"
   echo ""
   echo "  ${CYAN}IDE Setup:${NC}"
-  printf "  %-28s %s\n" "saascode-kit claude" "Install Claude Code config (CLAUDE.md, skills, hooks)"
-  printf "  %-28s %s\n" "saascode-kit cursor" "Install Cursor config (.cursorrules, rules)"
-  printf "  %-28s %s\n" "saascode-kit windsurf" "Install Windsurf config (.windsurfrules)"
-  printf "  %-28s %s\n" "saascode-kit antigravity" "Install Google Antigravity config (.agent/rules/)"
-  printf "  %-28s %s\n" "saascode-kit copilot" "Install GitHub Copilot config"
-  printf "  %-28s %s\n" "saascode-kit aider" "Install Aider config (CONVENTIONS.md)"
+  printf "  %-28s %s\n" "kitclaude" "Install Claude Code config (CLAUDE.md, skills, hooks)"
+  printf "  %-28s %s\n" "kitcursor" "Install Cursor config (.cursorrules, rules)"
+  printf "  %-28s %s\n" "kitwindsurf" "Install Windsurf config (.windsurfrules)"
+  printf "  %-28s %s\n" "kitantigravity" "Install Google Antigravity config (.agent/rules/)"
+  printf "  %-28s %s\n" "kitcopilot" "Install GitHub Copilot config"
+  printf "  %-28s %s\n" "kitaider" "Install Aider config (CONVENTIONS.md)"
   echo ""
   echo "  ${CYAN}Code Review:${NC}"
-  printf "  %-28s %s\n" "saascode-kit review" "AST-based code review (ts-morph)"
-  printf "  %-28s %s\n" "saascode-kit review --ai" "AI-powered review (auto-detects provider)"
-  printf "  %-28s %s\n" "saascode-kit review --ai --provider X" "Use specific provider (groq/openai/claude/gemini/deepseek/kimi/qwen)"
-  printf "  %-28s %s\n" "saascode-kit review --ai --model X" "Override default model"
-  printf "  %-28s %s\n" "saascode-kit review --ai --file X" "AI review a specific file"
-  printf "  %-28s %s\n" "saascode-kit review --repo" "Repo-level cross-module analysis"
-  printf "  %-28s %s\n" "saascode-kit review --json" "AST review with JSON output (CI integration)"
-  printf "  %-28s %s\n" "saascode-kit review --sarif" "AST review with SARIF output (GitHub Code Scanning)"
-  printf "  %-28s %s\n" "saascode-kit review --verify-intent \"desc\"" "Verify changes match stated intent (AI)"
-  printf "  %-28s %s\n" "saascode-kit check-file <path>" "Single-file validator (Claude Code hook)"
+  printf "  %-28s %s\n" "kitreview" "AST-based code review (ts-morph)"
+  printf "  %-28s %s\n" "kitreview --ai" "AI-powered review (auto-detects provider)"
+  printf "  %-28s %s\n" "kitreview --ai --provider X" "Use specific provider (groq/openai/claude/gemini/deepseek/kimi/qwen)"
+  printf "  %-28s %s\n" "kitreview --ai --model X" "Override default model"
+  printf "  %-28s %s\n" "kitreview --ai --file X" "AI review a specific file"
+  printf "  %-28s %s\n" "kitreview --repo" "Repo-level cross-module analysis"
+  printf "  %-28s %s\n" "kitreview --json" "AST review with JSON output (CI integration)"
+  printf "  %-28s %s\n" "kitreview --sarif" "AST review with SARIF output (GitHub Code Scanning)"
+  printf "  %-28s %s\n" "kitreview --verify-intent \"desc\"" "Verify changes match stated intent (AI)"
+  printf "  %-28s %s\n" "kitcheck-file <path>" "Single-file validator (Claude Code hook)"
   echo ""
   echo "  ${CYAN}Analysis:${NC}"
-  printf "  %-28s %s\n" "saascode-kit sweep" "Run ALL checks (audit + predeploy + review)"
-  printf "  %-28s %s\n" "saascode-kit sweep --ai" "Full sweep with AI review"
-  printf "  %-28s %s\n" "saascode-kit audit" "Run full security + quality audit"
-  printf "  %-28s %s\n" "saascode-kit parity" "Check frontend-backend endpoint parity"
-  printf "  %-28s %s\n" "saascode-kit snapshot" "Generate project-map.md from codebase"
-  printf "  %-28s %s\n" "saascode-kit docs" "Quick project overview (directory tree + stack)"
-  printf "  %-28s %s\n" "saascode-kit docs --full" "Full docs (models, endpoints, pages, components)"
-  printf "  %-28s %s\n" "saascode-kit docs --diagrams" "Add Mermaid architecture diagrams"
-  printf "  %-28s %s\n" "saascode-kit docs --prd" "Product Brief from existing project"
-  printf "  %-28s %s\n" "saascode-kit docs --prd \"idea\"" "Product Brief from new idea"
+  printf "  %-28s %s\n" "kitsweep" "Run ALL checks (audit + predeploy + review)"
+  printf "  %-28s %s\n" "kitsweep --ai" "Full sweep with AI review"
+  printf "  %-28s %s\n" "kitaudit" "Run full security + quality audit"
+  printf "  %-28s %s\n" "kitparity" "Check frontend-backend endpoint parity"
+  printf "  %-28s %s\n" "kitsnapshot" "Generate project-map.md from codebase"
+  printf "  %-28s %s\n" "kitdocs" "Quick project overview (directory tree + stack)"
+  printf "  %-28s %s\n" "kitdocs --full" "Full docs (models, endpoints, pages, components)"
+  printf "  %-28s %s\n" "kitdocs --diagrams" "Add Mermaid architecture diagrams"
+  printf "  %-28s %s\n" "kitdocs --prd" "Product Brief from existing project"
+  printf "  %-28s %s\n" "kitdocs --prd \"idea\"" "Product Brief from new idea"
   echo ""
   echo "  ${CYAN}Tracking:${NC}"
-  printf "  %-28s %s\n" "saascode-kit intent" "View AI edit intent log"
-  printf "  %-28s %s\n" "saascode-kit intent --summary" "Session summaries"
-  printf "  %-28s %s\n" "saascode-kit report" "View detected issues"
-  printf "  %-28s %s\n" "saascode-kit report --github" "File issues to GitHub"
-  printf "  %-28s %s\n" "saascode-kit report --summary" "Issue counts by category"
+  printf "  %-28s %s\n" "kitintent" "View AI edit intent log"
+  printf "  %-28s %s\n" "kitintent --summary" "Session summaries"
+  printf "  %-28s %s\n" "kitreport" "View detected issues"
+  printf "  %-28s %s\n" "kitreport --github" "File issues to GitHub"
+  printf "  %-28s %s\n" "kitreport --summary" "Issue counts by category"
   echo ""
   echo "  ${CYAN}Adaptive Learning:${NC}"
-  printf "  %-28s %s\n" "saascode-kit learn" "Analyze warning patterns"
-  printf "  %-28s %s\n" "saascode-kit learn suppress" "Auto-suppress noisy warnings"
-  printf "  %-28s %s\n" "saascode-kit learn show" "Show current suppressions"
-  printf "  %-28s %s\n" "saascode-kit learn reset" "Clear all learned rules"
+  printf "  %-28s %s\n" "kitlearn" "Analyze warning patterns"
+  printf "  %-28s %s\n" "kitlearn suppress" "Auto-suppress noisy warnings"
+  printf "  %-28s %s\n" "kitlearn show" "Show current suppressions"
+  printf "  %-28s %s\n" "kitlearn reset" "Clear all learned rules"
   echo ""
   echo "  ${CYAN}Stealth:${NC}"
-  printf "  %-28s %s\n" "saascode-kit cloak" "Hide all kit + AI tool traces from repo"
-  printf "  %-28s %s\n" "saascode-kit cloak --name .tools" "Use custom directory name"
-  printf "  %-28s %s\n" "saascode-kit uncloak" "Reverse stealth mode, restore all files"
+  printf "  %-28s %s\n" "kitcloak" "Hide all kit + AI tool traces from repo"
+  printf "  %-28s %s\n" "kitcloak --name .tools" "Use custom directory name"
+  printf "  %-28s %s\n" "kituncloak" "Reverse stealth mode, restore all files"
   echo ""
   echo "  ${CYAN}Deployment:${NC}"
-  printf "  %-28s %s\n" "saascode-kit predeploy" "Run pre-deployment gates"
-  printf "  %-28s %s\n" "saascode-kit checklist [name]" "Show a checklist (feature-complete, security-review, deploy-ready)"
+  printf "  %-28s %s\n" "kitpredeploy" "Run pre-deployment gates"
+  printf "  %-28s %s\n" "kitchecklist [name]" "Show a checklist (feature-complete, security-review, deploy-ready)"
   echo ""
   echo "  ${CYAN}Info:${NC}"
-  printf "  %-28s %s\n" "saascode-kit rules" "List installed Semgrep rules"
-  printf "  %-28s %s\n" "saascode-kit skills" "List installed Claude Code skills"
-  printf "  %-28s %s\n" "saascode-kit help" "This help message"
+  printf "  %-28s %s\n" "kitrules" "List installed Semgrep rules"
+  printf "  %-28s %s\n" "kitskills" "List installed Claude Code skills"
+  printf "  %-28s %s\n" "kithelp" "This help message"
   echo ""
   echo "  ${CYAN}Claude Code Skills (use in Claude Code conversation):${NC}"
   printf "  %-28s %s\n" "/audit" "Security + quality scan"
@@ -1347,7 +1347,7 @@ cmd_help() {
   echo "  ${CYAN}CI/CD (GitHub Actions):${NC}"
   printf "  %-28s %s\n" "On PR" "TypeScript, build, endpoint parity, secrets"
   echo ""
-  echo "${DIM}Also available as: alias saascode='.saascode/scripts/saascode.sh'${NC}"
+  echo "${DIM}Also available as: alias kit='.saascode/scripts/saascode.sh'${NC}"
   echo ""
 }
 

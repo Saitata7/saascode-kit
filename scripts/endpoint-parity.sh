@@ -1,5 +1,5 @@
 #!/bin/bash
-# SaasCode Kit — Endpoint Parity Enforcer
+# Kit — Endpoint Parity Enforcer
 # Compares backend controllers vs frontend API clients
 # Reports: missing in frontend, missing in backend
 # Usage: saascode parity  OR  bash saascode-kit/scripts/endpoint-parity.sh

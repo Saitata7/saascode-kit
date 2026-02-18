@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Shared Library
+# Kit — Shared Library
 # Common functions used by setup.sh and saascode.sh
 # ═══════════════════════════════════════════════════════════
 

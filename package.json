@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "SaaS development toolkit — AI-powered code review, security rules, and IDE config for SaaS projects",
   "bin": {
-    "saascode-kit": "./bin/cli.sh"
+    "kit": "./bin/cli.sh"
   },
   "scripts": {
     "test": "bash tests/run-tests.sh",

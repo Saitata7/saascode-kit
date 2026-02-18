@@ -1,14 +1,14 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Cloak / Uncloak
+# Kit — Cloak / Uncloak
 #
-# Stealth mode: removes all traces of saascode-kit from
+# Stealth mode: removes all traces of kit from
 # the project. Nobody can tell you're using it.
 #
 # Usage:
-#   saascode-kit cloak                  # Activate stealth mode
-#   saascode-kit cloak --name .devtools # Custom directory name
-#   saascode-kit uncloak                # Reverse stealth mode
+#   kit cloak                  # Activate stealth mode
+#   kit cloak --name .devtools # Custom directory name
+#   kit uncloak                # Reverse stealth mode
 # ═══════════════════════════════════════════════════════════
 
 set -e
@@ -66,12 +66,12 @@ CLOAK_BASE="${CLOAK_DIR#.}"  # "devkit" (without dot)
 
 if [ "$SHOW_HELP" = true ]; then
   echo ""
-  echo "${BOLD}SaasCode Kit — Stealth Mode${NC}"
+  echo "${BOLD}Kit — Stealth Mode${NC}"
   echo ""
   echo "Usage:"
-  echo "  saascode-kit cloak                  Activate stealth mode (default: .devkit)"
-  echo "  saascode-kit cloak --name .tools    Use custom directory name"
-  echo "  saascode-kit uncloak                Reverse stealth mode"
+  echo "  kit cloak                  Activate stealth mode (default: .devkit)"
+  echo "  kit cloak --name .tools    Use custom directory name"
+  echo "  kit uncloak                Reverse stealth mode"
   echo ""
   echo "What cloak does:"
   echo "  - Renames .saascode/ to your chosen name"
@@ -79,7 +79,7 @@ if [ "$SHOW_HELP" = true ]; then
   echo "  - Updates hooks, settings, gitignore, CI"
   echo "  - Removes branding from terminal output"
   echo "  - Stashes dev tool files (.claude/, .cursor/, .cursorrules, etc.)"
-  echo "  - Nobody can tell you're using saascode-kit or any AI tools"
+  echo "  - Nobody can tell you're using kit or any AI tools"
   echo ""
   exit 0
 fi
@@ -127,7 +127,7 @@ do_cloak() {
         -e "s|saascode-kit/|$CLOAK_BASE/|g" \
         -e "s|saascode-kit|$CLOAK_BASE|g" \
         -e "s|saascode\.yml|ci-checks.yml|g" \
-        -e "s|SaasCode Kit|$CLOAK_BASE|g" \
+        -e "s|Kit|$CLOAK_BASE|g" \
         -e "s|SaasCode|$CLOAK_BASE|g" \
         -e "s|saascode|$CLOAK_BASE|g" \
         "$F"
@@ -171,7 +171,7 @@ do_cloak() {
         -e "s|saascode-kit/|$CLOAK_BASE/|g" \
         -e "s|saascode-kit|$CLOAK_BASE|g" \
         -e "s|saascode\.yml|ci-checks.yml|g" \
-        -e "s|SaasCode Kit — ||g" \
+        -e "s|Kit — ||g" \
         -e "s|SaasCode ||g" \
         "$ROOT/.git/hooks/$HOOK"
       rm -f "$ROOT/.git/hooks/$HOOK.bak"
@@ -185,7 +185,7 @@ do_cloak() {
     sed -i.bak \
       -e "s|\.saascode/|$CLOAK_DIR/|g" \
       -e "s|\.saascode|$CLOAK_DIR|g" \
-      -e "s|SaasCode Kit|Development Kit|g" \
+      -e "s|Kit|Development Kit|g" \
       -e "s|SaasCode|DevKit|g" \
       -e "s|saascode-kit|$CLOAK_BASE|g" \
       -e "s|saascode |$CLOAK_BASE |g" \
@@ -198,7 +198,7 @@ do_cloak() {
   # ─── 7. Update .cursorrules ───
   if [ -f "$ROOT/.cursorrules" ]; then
     sed -i.bak \
-      -e "s|SaasCode Kit|Development Kit|g" \
+      -e "s|Kit|Development Kit|g" \
       -e "s|SaasCode|DevKit|g" \
       -e "s|saascode-kit|$CLOAK_BASE|g" \
       -e "s|saascode|$CLOAK_BASE|g" \
@@ -211,7 +211,7 @@ do_cloak() {
   # ─── 8. Update .windsurfrules ───
   if [ -f "$ROOT/.windsurfrules" ]; then
     sed -i.bak \
-      -e "s|SaasCode Kit|Development Kit|g" \
+      -e "s|Kit|Development Kit|g" \
       -e "s|SaasCode|DevKit|g" \
       -e "s|saascode-kit|$CLOAK_BASE|g" \
       -e "s|saascode|$CLOAK_BASE|g" \
@@ -226,7 +226,7 @@ do_cloak() {
     for F in "$ROOT/.cursor/rules"/*.mdc; do
       [ -f "$F" ] || continue
       sed -i.bak \
-        -e "s|SaasCode Kit|Development Kit|g" \
+        -e "s|Kit|Development Kit|g" \
         -e "s|SaasCode|DevKit|g" \
         -e "s|saascode-kit|$CLOAK_BASE|g" \
         -e "s|saascode|$CLOAK_BASE|g" \
@@ -335,7 +335,7 @@ EOF
   echo ""
   echo "  ${GREEN}${BOLD}Stealth mode active. $CHANGED items updated.${NC}"
   echo ""
-  echo "  ${DIM}No trace of saascode-kit or AI tools in your repo.${NC}"
+  echo "  ${DIM}No trace of kit or AI tools in your repo.${NC}"
   echo "  ${DIM}Dev files stashed in '$CLOAK_DIR/.stashed/'.${NC}"
   echo "  ${DIM}Everything still works — just under '$CLOAK_DIR/'.${NC}"
   echo "  ${DIM}To reverse: run the cloak script with 'uncloak'${NC}"
@@ -482,7 +482,7 @@ do_uncloak() {
   fi
 
   # ─── 9. Fix path refs in restored dev tool files ───
-  # Branding stays generic (user should re-run 'saascode-kit claude'/'cursor')
+  # Branding stays generic (user should re-run 'kit claude'/'cursor')
   # but path references (.devkit → .saascode) must be corrected
   if [ -f "$ROOT/CLAUDE.md" ]; then
     sed -i.bak \
@@ -553,8 +553,8 @@ GITIGNORE_TOOLS
   echo "  ${GREEN}${BOLD}Stealth mode deactivated. $CHANGED items restored.${NC}"
   echo ""
   echo "  ${YELLOW}Note: CLAUDE.md, .cursorrules, and .windsurfrules${NC}"
-  echo "  ${YELLOW}have generic branding. Re-run 'saascode-kit claude'${NC}"
-  echo "  ${YELLOW}or 'saascode-kit cursor' to restore full branding.${NC}"
+  echo "  ${YELLOW}have generic branding. Re-run 'kit claude'${NC}"
+  echo "  ${YELLOW}or 'kit cursor' to restore full branding.${NC}"
   echo ""
 }
 
@@ -564,7 +564,7 @@ case "$ACTION" in
   uncloak) do_uncloak ;;
   *)
     echo "${RED}Unknown action: $ACTION${NC}"
-    echo "Usage: saascode-kit cloak | saascode-kit uncloak"
+    echo "Usage: kit cloak | kit uncloak"
     exit 1
     ;;
 esac

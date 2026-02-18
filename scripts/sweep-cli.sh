@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Full Sweep
+# Kit — Full Sweep
 #
 # Runs all checks in sequence: audit → predeploy → review
 # Gives a combined pass/fail summary at the end.
@@ -218,7 +218,7 @@ LOG_DIR="$ROOT/.saascode/logs"
 TODAY=$(date -u +%Y-%m-%d)
 if [ -f "$LOG_DIR/issues-${TODAY}.jsonl" ]; then
   ISSUE_COUNT=$(wc -l < "$LOG_DIR/issues-${TODAY}.jsonl" | tr -d '[:space:]')
-  echo "  ${DIM}$ISSUE_COUNT issue(s) logged today → run: saascode-kit report${NC}"
+  echo "  ${DIM}$ISSUE_COUNT issue(s) logged today → run: kit report${NC}"
   echo ""
 fi
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SaasCode Kit — Python AST Code Review
+Kit — Python AST Code Review
 Zero dependencies — uses only Python 3 stdlib.
 Mirrors ast-review.ts output format (table, verdict, exit codes).
 

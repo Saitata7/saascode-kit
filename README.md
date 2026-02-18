@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">SaasCode Kit</h1>
+  <h1 align="center">Kit</h1>
   <p align="center">Development toolkit for AI agents building SaaS applications</p>
   <p align="center"><strong>AI-First Design</strong> • One manifest, multiple outputs</p>
 </p>
@@ -69,11 +69,11 @@
 
 ## 👥 For Humans (Project Owners)
 
-### What Is SaasCode Kit?
+### What Is Kit?
 
 AI coding tools are powerful but blind -- they don't know your auth flow, your security patterns, your API conventions, or which endpoints already exist. You end up repeating the same instructions, fixing the same mistakes, and babysitting every prompt.
 
-SaasCode Kit solves this. You fill out one `manifest.yaml` with your project's stack, and the kit generates IDE-specific context files, code review automation, git hooks, and CLI tools -- all tailored to **your** project.
+Kit solves this. You fill out one `manifest.yaml` with your project's stack, and the kit generates IDE-specific context files, code review automation, git hooks, and CLI tools -- all tailored to **your** project.
 
 **One manifest. Every IDE. Every developer. Same rules.**
 
@@ -115,7 +115,7 @@ SaasCode Kit solves this. You fill out one `manifest.yaml` with your project's s
 | **Intent Tracking** | Logs every AI edit with context -- what was changed, which file, what the check-file validator found. Full audit trail |
 | **Issue Report Logging** | Every detected issue (from check-file, audit, pre-deploy) is auto-logged to `.saascode/logs/`. View with `saascode report`, or file to GitHub with `--github` |
 | **Full Sweep** | One command runs audit + pre-deploy + code review in sequence with a combined pass/fail summary |
-| **Stealth Mode (Cloak)** | Removes all traces of saascode-kit and AI tools from your repo. Renames directories, strips branding, stashes `.claude/`, `.cursor/`, `.cursorrules`, `.windsurfrules`. Nobody can tell you're using it |
+| **Stealth Mode (Cloak)** | Removes all traces of kit and AI tools from your repo. Renames directories, strips branding, stashes `.claude/`, `.cursor/`, `.cursorrules`, `.windsurfrules`. Nobody can tell you're using it |
 | **Self-Improving Rules** | `/learn` skill captures real bugs found during development and feeds them back into the kit's patterns |
 | **Project Snapshot** | Auto-generates `project-map.md` from your actual codebase -- models, endpoints, pages, components |
 
@@ -146,10 +146,10 @@ If your project has specific rules that generic linters can't enforce -- auth gu
 ### Option 1: npx (Recommended)
 
 ```bash
-npx saascode-kit init
+npx kit init
 ```
 
-This creates `manifest.yaml` from the template. Edit it with your project details, then run `npx saascode-kit init` again to install everything.
+This creates `manifest.yaml` from the template. Edit it with your project details, then run `npx kit init` again to install everything.
 
 ### Option 2: Git Submodule
 

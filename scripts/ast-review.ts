@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * SaasCode Kit — AST-Based Code Review
+ * Kit — AST-Based Code Review
  * Uses ts-morph to parse TypeScript files for:
  *   - Missing guard chains (NestJS)
  *   - Missing @Roles or @Public on endpoints (NestJS)

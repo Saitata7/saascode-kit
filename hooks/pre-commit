@@ -1,5 +1,5 @@
 #!/bin/sh
-# SaasCode Kit — Pre-Commit Hook
+# Kit — Pre-Commit Hook
 # Checks: secrets, .env files, security vulnerabilities, debug statements, large files, merge conflicts
 # Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 

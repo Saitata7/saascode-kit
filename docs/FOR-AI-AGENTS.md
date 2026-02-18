@@ -23,7 +23,7 @@
 
 **You are:**
 - An AI coding assistant (Claude Code, Cursor, Windsurf, Aider, etc.)
-- Working on a SaaS project with saascode-kit installed
+- Working on a SaaS project with kit installed
 - Looking for detailed guidance beyond auto-loaded rules
 - Wanting to understand best practices deeply
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SaasCode Kit — Snapshot Generator
+# Kit — Snapshot Generator
 # Generates .claude/context/project-map.md from actual codebase
 # Usage: saascode snapshot  OR  bash saascode-kit/scripts/snapshot.sh
 

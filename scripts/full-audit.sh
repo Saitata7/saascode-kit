@@ -1,5 +1,5 @@
 #!/bin/bash
-# SaasCode Kit — Full Audit Script
+# Kit — Full Audit Script
 # Runs ALL security, quality, and pattern checks in one go
 #
 # Usage: ./scripts/full-audit.sh [backend-path] [frontend-path]

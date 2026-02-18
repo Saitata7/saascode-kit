@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Automated Test Runner
+# Kit — Automated Test Runner
 # Tests ALL commands on ALL fixture projects
 # Exit 0 = all passed, Exit 1 = failures found
 #
@@ -478,7 +478,7 @@ main() {
 
   echo ""
   echo -e "${BOLD}${CYAN}════════════════════════════════════════════════════${NC}"
-  echo -e "${BOLD}SaasCode Kit — Automated Test Suite${NC}"
+  echo -e "${BOLD}Kit — Automated Test Suite${NC}"
   echo -e "${CYAN}════════════════════════════════════════════════════${NC}"
   echo ""
   echo "Testing ${#RUN_PROJECTS[@]} projects with ${#COMMANDS[@]} commands"

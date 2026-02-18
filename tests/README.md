@@ -1,6 +1,6 @@
 # Test Suite
 
-Universal test runner for saascode-kit — validates all 11 commands against 16 real-world projects.
+Universal test runner for kit — validates all 11 commands against 16 real-world projects.
 
 **AI-Friendly:** Works with Claude Code, Cursor, or any AI agent with shell access.
 

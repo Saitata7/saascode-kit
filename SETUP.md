@@ -16,14 +16,14 @@
 Fastest way to get started. No git knowledge needed:
 
 ```bash
-npx saascode-kit init
+npx kit init
 ```
 
 First run creates `saascode-kit.yaml` in your project. Edit it with your project details, then run again:
 
 ```bash
 # Edit saascode-kit.yaml with your project details
-npx saascode-kit init
+npx kit init
 ```
 
 The second run reads your manifest and installs everything (templates, skills, rules, hooks, CI, scripts).
@@ -62,7 +62,7 @@ git clone https://github.com/Saitata7/saascode-kit.git saascode-kit
 
 ### For npx users
 
-Edit `saascode-kit.yaml` (created by `npx saascode-kit init`) and run the init command again.
+Edit `saascode-kit.yaml` (created by `npx kit init`) and run the init command again.
 
 ### For submodule/clone users
 
@@ -174,7 +174,7 @@ source ~/.zshrc
 
 | Command | What It Does |
 |---------|-------------|
-| `saascode cloak` | Hide all saascode-kit + AI tool traces from repo (default: `.devkit`) |
+| `saascode cloak` | Hide all kit + AI tool traces from repo (default: `.devkit`) |
 | `saascode cloak --name .tools` | Use a custom directory name instead of `.devkit` |
 | `saascode uncloak` | Reverse stealth mode, restore all files to original locations |
 
@@ -196,7 +196,7 @@ Cloak renames `.saascode/` to your chosen name, strips all branding from scripts
 
 ```
 saascode-kit/
-├── package.json                   # npm package config (for npx saascode-kit init)
+├── package.json                   # npm package config (for npx kit init)
 ├── bin/
 │   └── cli.sh                     # npx CLI entry point
 ├── setup.sh                       # Automated setup -- reads manifest, generates everything
@@ -348,7 +348,7 @@ Report format...
 Add the alias to your shell profile: `alias saascode=".saascode/scripts/saascode.sh"`
 
 **`manifest.yaml not found`**
-If using npx: Run `npx saascode-kit init` to create `saascode-kit.yaml`.
+If using npx: Run `npx kit init` to create `saascode-kit.yaml`.
 If using submodule: `cp saascode-kit/manifest.example.yaml saascode-kit/manifest.yaml`
 
 **Placeholders not replaced**

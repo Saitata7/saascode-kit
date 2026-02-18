@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# SaasCode Kit — Review Output Formatter
+# Kit — Review Output Formatter
 # Converts pipe-delimited findings to JSON, SARIF, or table.
 #
 # Findings format (one per line):
@@ -29,7 +29,7 @@ format_json() {
   [ "$CRITICALS" -gt 0 ] && VERDICT="REQUEST_CHANGES"
 
   echo "{"
-  echo "  \"tool\": \"saascode-kit\","
+  echo "  \"tool\": \"kit\","
   echo "  \"version\": \"0.1.0\","
   echo "  \"language\": \"$LANG\","
   echo "  \"summary\": {"
@@ -86,7 +86,7 @@ format_sarif() {
     {
       "tool": {
         "driver": {
-          "name": "saascode-kit",
+          "name": "kit",
           "version": "0.1.0",
           "informationUri": "https://github.com/Saitata7/saascode-kit",
           "rules": []

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SaasCode Kit — Pre-Deploy Verification
+# Kit — Pre-Deploy Verification
 # Run this before any deployment to verify release readiness
 #
 # Usage: ./scripts/pre-deploy.sh [backend-path] [frontend-path] [api-url]

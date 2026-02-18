@@ -1,10 +1,10 @@
-# SaasCode Kit — Project Context
+# Kit — Project Context
 
 > This is the development context for working ON the kit itself, not a user project.
 
 ## What This Is
 
-SaasCode Kit is a manifest-driven development toolkit that gives AI agents (Claude Code, Cursor, Windsurf) project-specific intelligence. One `manifest.yaml` generates context files, skills, rules, hooks, review engines, and CI pipelines.
+Kit is a manifest-driven development toolkit that gives AI agents (Claude Code, Cursor, Windsurf) project-specific intelligence. One `manifest.yaml` generates context files, skills, rules, hooks, review engines, and CI pipelines.
 
 **Primary users:** AI agents. **Secondary users:** Human developers via CLI.
 
@@ -14,7 +14,7 @@ SaasCode Kit is a manifest-driven development toolkit that gives AI agents (Clau
 - **AST Review:** TypeScript (ts-morph), Python (stdlib ast), Java (bash+grep+awk)
 - **AI Review:** Shell + curl (7 LLM providers)
 - **Static Analysis:** Semgrep YAML rules
-- **Distribution:** npm (npx saascode-kit)
+- **Distribution:** npm (npx kit)
 - **Template Engine:** Custom awk/sed (BSD-compatible, no Python/Node dependency for init)
 
 ## Project Structure
@@ -83,7 +83,7 @@ bash -n scripts/some-script.sh
 
 ## Competitive Positioning
 
-SaasCode Kit = **Superpower Prompts** (like Obra, but manifest-driven + multi-IDE) + **Code Review** (like CodeRabbit, but free + before-commit) + **Intent Verification** (like kluster.ai, but free + hook-based) + **Prevention Gates** (like Husky+Semgrep)
+Kit = **Superpower Prompts** (like Obra, but manifest-driven + multi-IDE) + **Code Review** (like CodeRabbit, but free + before-commit) + **Intent Verification** (like kluster.ai, but free + hook-based) + **Prevention Gates** (like Husky+Semgrep)
 
 ## Detailed Guidelines
 
