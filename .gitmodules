@@ -1,0 +1,3 @@
+[submodule "docs/product"]
+	path = docs/product
+	url = https://github.com/Saitata7/saascode-kit-internal.git

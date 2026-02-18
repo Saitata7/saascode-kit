@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash -n:*)",
+      "Bash(bash scripts/validate-structure.sh)",
+      "Bash(bash tests/run-tests.sh)",
+      "Bash(ls:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm test:*)",
+      "Bash(npx saascode-kit:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(git push origin main --force)",
+      "Bash(git reset --hard)",
+      "Bash(git clean -fdx)",
+      "Bash(npm publish)"
+    ]
+  }
+}
