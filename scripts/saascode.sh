@@ -33,6 +33,44 @@ fi
 
 cmd_init() {
   local KIT="$ROOT/saascode-kit"
+  local DRY_RUN=false
+  for arg in "$@"; do
+    [ "$arg" = "--dry-run" ] && DRY_RUN=true
+  done
+
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${BOLD}Dry Run — Preview of what would be generated:${NC}"
+    echo ""
+    echo -e "  ${CYAN}IDE Context:${NC}"
+    echo "    CLAUDE.md                     (from templates/CLAUDE.md.template)"
+    echo "    .cursorrules                  (from templates/cursorrules.template)"
+    echo "    .windsurfrules                (from templates/windsurfrules.template)"
+    echo "    .cursor/rules/*.mdc           (framework-specific cursor rules)"
+    echo ""
+    echo -e "  ${CYAN}Skills:${NC}"
+    local SKILL_COUNT=0
+    if [ -d "$KIT/skills" ]; then
+      SKILL_COUNT=$(ls "$KIT/skills/"*.md 2>/dev/null | wc -l | tr -d ' ')
+    fi
+    echo "    .claude/skills/               ($SKILL_COUNT skills)"
+    echo ""
+    echo -e "  ${CYAN}Rules:${NC}"
+    echo "    .saascode/rules/              (Semgrep security rules)"
+    echo ""
+    echo -e "  ${CYAN}Hooks:${NC}"
+    echo "    .git/hooks/pre-commit         (secrets, .env, debug statements)"
+    echo "    .git/hooks/pre-push           (typecheck, build, audit)"
+    echo ""
+    echo -e "  ${CYAN}CI:${NC}"
+    echo "    .github/workflows/saascode.yml (language-aware CI pipeline)"
+    echo ""
+    echo -e "  ${CYAN}Scripts:${NC}"
+    echo "    .saascode/scripts/            (review, audit, parity, etc.)"
+    echo ""
+    echo -e "${DIM}Run without --dry-run to actually generate files.${NC}"
+    return
+  fi
+
   if [ -f "$KIT/setup.sh" ]; then
     bash "$KIT/setup.sh" "$ROOT"
   else
@@ -61,17 +99,29 @@ cmd_review() {
   # Route flags to specialized reviewers
   local HAS_AI=false
   local HAS_INTENT=false
+  local HAS_REPO=false
   local INTENT_ARGS=()
   local PASS_ARGS=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --ai) HAS_AI=true ;;
+      --repo) HAS_REPO=true ;;
       --verify-intent) HAS_INTENT=true; shift; INTENT_ARGS+=(--intent "$1") ;;
       --intent-file) HAS_INTENT=true; INTENT_ARGS+=(--intent-file "$2"); shift ;;
       *) PASS_ARGS+=("$1") ;;
     esac
     shift
   done
+
+  if [ "$HAS_REPO" = true ]; then
+    if [ -f "$SCRIPTS_DIR/repo-review.sh" ]; then
+      bash "$SCRIPTS_DIR/repo-review.sh" "${PASS_ARGS[@]}"
+    else
+      echo "${RED}Error: repo-review.sh not found at $SCRIPTS_DIR${NC}"
+      exit 1
+    fi
+    return
+  fi
 
   if [ "$HAS_INTENT" = true ]; then
     if [ -f "$SCRIPTS_DIR/verify-intent.sh" ]; then
@@ -279,6 +329,22 @@ cmd_update() {
   echo ""
   local KIT="$ROOT/saascode-kit"
   local UPDATED=0
+
+  # Version check
+  if [ -f "$KIT/package.json" ]; then
+    local LOCAL_VER
+    LOCAL_VER=$(grep '"version"' "$KIT/package.json" 2>/dev/null | head -1 | sed 's/.*: *"//; s/".*//')
+    local LATEST_VER
+    LATEST_VER=$(npm view saascode-kit version 2>/dev/null || echo "")
+    if [ -n "$LATEST_VER" ] && [ "$LOCAL_VER" != "$LATEST_VER" ]; then
+      echo -e "  ${YELLOW}!${NC} Local version: $LOCAL_VER, Latest: $LATEST_VER"
+      echo -e "  ${DIM}Run: npm update saascode-kit${NC}"
+      echo ""
+    elif [ -n "$LATEST_VER" ]; then
+      echo -e "  ${GREEN}✓${NC} Kit is up to date (v$LOCAL_VER)"
+      echo ""
+    fi
+  fi
 
   # Skills → .claude/skills/
   if [ -d "$KIT/skills" ]; then
@@ -700,6 +766,131 @@ cmd_check_file() {
   bash "$SCRIPTS_DIR/check-file.sh" "$FILE"
 }
 
+cmd_doctor() {
+  echo -e "${BOLD}SaasCode Kit Doctor${NC}"
+  echo "========================================"
+  echo ""
+
+  local ISSUES=0
+  local PASS=0
+
+  # Check 1: manifest.yaml exists
+  local HAS_MANIFEST=false
+  for CANDIDATE in "$ROOT/saascode-kit/manifest.yaml" "$ROOT/.saascode/manifest.yaml" "$ROOT/manifest.yaml" "$ROOT/saascode-kit.yaml"; do
+    [ -f "$CANDIDATE" ] && HAS_MANIFEST=true && break
+  done
+  if [ "$HAS_MANIFEST" = true ]; then
+    echo -e "  ${GREEN}✓${NC} manifest.yaml found"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${RED}✗${NC} manifest.yaml not found"
+    echo -e "    ${DIM}Fix: cp saascode-kit/manifest.example.yaml saascode-kit/manifest.yaml${NC}"
+    ISSUES=$((ISSUES + 1))
+  fi
+
+  # Check 2: CLAUDE.md exists
+  if [ -f "$ROOT/CLAUDE.md" ]; then
+    echo -e "  ${GREEN}✓${NC} CLAUDE.md found"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${YELLOW}!${NC} CLAUDE.md not found (run: saascode init or saascode claude)"
+    ISSUES=$((ISSUES + 1))
+  fi
+
+  # Check 3: Git hooks installed
+  if [ -f "$ROOT/.git/hooks/pre-commit" ]; then
+    echo -e "  ${GREEN}✓${NC} pre-commit hook installed"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${YELLOW}!${NC} pre-commit hook not installed (run: saascode init)"
+    ISSUES=$((ISSUES + 1))
+  fi
+
+  # Check 4: Scripts directory exists
+  if [ -d "$SCRIPTS_DIR" ] && [ -f "$SCRIPTS_DIR/check-file.sh" ]; then
+    echo -e "  ${GREEN}✓${NC} Scripts installed ($SCRIPTS_DIR)"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${RED}✗${NC} Scripts not found at $SCRIPTS_DIR"
+    echo -e "    ${DIM}Fix: saascode init${NC}"
+    ISSUES=$((ISSUES + 1))
+  fi
+
+  # Check 5: Node.js available (for TS review)
+  if command -v node &>/dev/null; then
+    local NODE_VER
+    NODE_VER=$(node --version 2>/dev/null)
+    echo -e "  ${GREEN}✓${NC} Node.js $NODE_VER"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${YELLOW}!${NC} Node.js not found (needed for TypeScript AST review)"
+    ISSUES=$((ISSUES + 1))
+  fi
+
+  # Check 6: Python available (for Python review)
+  if command -v python3 &>/dev/null; then
+    local PY_VER
+    PY_VER=$(python3 --version 2>/dev/null)
+    echo -e "  ${GREEN}✓${NC} $PY_VER"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${DIM}-${NC} Python not found (optional — needed for Python AST review)"
+  fi
+
+  # Check 7: Git repo
+  if git rev-parse --is-inside-work-tree &>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} Git repository"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${RED}✗${NC} Not a git repository"
+    ISSUES=$((ISSUES + 1))
+  fi
+
+  # Check 8: Semgrep rules installed
+  local RULE_COUNT=0
+  if [ -d "$RULES_DIR" ]; then
+    RULE_COUNT=$(ls "$RULES_DIR"/*.yaml 2>/dev/null | wc -l | tr -d ' ')
+  fi
+  if [ "$RULE_COUNT" -gt 0 ]; then
+    echo -e "  ${GREEN}✓${NC} $RULE_COUNT Semgrep rule files"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${YELLOW}!${NC} No Semgrep rules installed (run: saascode init)"
+    ISSUES=$((ISSUES + 1))
+  fi
+
+  # Check 9: IDE configs
+  local IDE_COUNT=0
+  [ -f "$ROOT/CLAUDE.md" ] && IDE_COUNT=$((IDE_COUNT + 1))
+  [ -f "$ROOT/.cursorrules" ] && IDE_COUNT=$((IDE_COUNT + 1))
+  [ -f "$ROOT/.windsurfrules" ] && IDE_COUNT=$((IDE_COUNT + 1))
+  [ -f "$ROOT/.github/copilot-instructions.md" ] && IDE_COUNT=$((IDE_COUNT + 1))
+  [ -d "$ROOT/.agent/rules" ] && IDE_COUNT=$((IDE_COUNT + 1))
+  [ -f "$ROOT/CONVENTIONS.md" ] && IDE_COUNT=$((IDE_COUNT + 1))
+  echo -e "  ${GREEN}✓${NC} $IDE_COUNT IDE configs detected"
+
+  # Check 10: Kit version
+  local KIT_DIR=""
+  for CANDIDATE in "$ROOT/saascode-kit" "$ROOT/.saascode"; do
+    [ -d "$CANDIDATE" ] && KIT_DIR="$CANDIDATE" && break
+  done
+  if [ -n "$KIT_DIR" ] && [ -f "$KIT_DIR/package.json" ]; then
+    local KIT_VER
+    KIT_VER=$(grep '"version"' "$KIT_DIR/package.json" 2>/dev/null | head -1 | sed 's/.*: *"//; s/".*//')
+    echo -e "  ${GREEN}✓${NC} Kit version: $KIT_VER"
+    PASS=$((PASS + 1))
+  fi
+
+  echo ""
+  echo "========================================"
+  if [ "$ISSUES" -eq 0 ]; then
+    echo -e "  ${GREEN}${BOLD}All checks passed ($PASS/$PASS)${NC}"
+  else
+    echo -e "  ${YELLOW}${BOLD}$PASS passed, $ISSUES issues found${NC}"
+  fi
+  echo ""
+}
+
 cmd_status() {
   echo "${BOLD}SaasCode Kit Status${NC}"
   echo ""
@@ -1069,6 +1260,8 @@ cmd_help() {
   printf "  %-28s %s\n" "saascode-kit init" "Run setup.sh to bootstrap kit in project"
   printf "  %-28s %s\n" "saascode-kit update" "Sync kit source → installed locations"
   printf "  %-28s %s\n" "saascode-kit verify" "Verify development environment setup"
+  printf "  %-28s %s\n" "saascode-kit init --dry-run" "Preview what would be generated"
+  printf "  %-28s %s\n" "saascode-kit doctor" "Diagnose common setup issues"
   printf "  %-28s %s\n" "saascode-kit status" "Show kit installation status"
   echo ""
   echo "  ${CYAN}IDE Setup:${NC}"
@@ -1085,6 +1278,9 @@ cmd_help() {
   printf "  %-28s %s\n" "saascode-kit review --ai --provider X" "Use specific provider (groq/openai/claude/gemini/deepseek/kimi/qwen)"
   printf "  %-28s %s\n" "saascode-kit review --ai --model X" "Override default model"
   printf "  %-28s %s\n" "saascode-kit review --ai --file X" "AI review a specific file"
+  printf "  %-28s %s\n" "saascode-kit review --repo" "Repo-level cross-module analysis"
+  printf "  %-28s %s\n" "saascode-kit review --json" "AST review with JSON output (CI integration)"
+  printf "  %-28s %s\n" "saascode-kit review --sarif" "AST review with SARIF output (GitHub Code Scanning)"
   printf "  %-28s %s\n" "saascode-kit review --verify-intent \"desc\"" "Verify changes match stated intent (AI)"
   printf "  %-28s %s\n" "saascode-kit check-file <path>" "Single-file validator (Claude Code hook)"
   echo ""
@@ -1180,6 +1376,7 @@ case "$COMMAND" in
   snapshot)   cmd_snapshot "$@" ;;
   update)     cmd_update "$@" ;;
   status)     cmd_status "$@" ;;
+  doctor)     cmd_doctor "$@" ;;
   check-file) cmd_check_file "$@" ;;
   intent)     cmd_intent "$@" ;;
   report)     cmd_report "$@" ;;

@@ -80,6 +80,19 @@ detect_language() {
   fi
 }
 
+# ── Parse --json / --sarif flags ──
+OUTPUT_FORMAT="table"
+PASS_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --json)  OUTPUT_FORMAT="json" ;;
+    --sarif) OUTPUT_FORMAT="sarif" ;;
+    *)       PASS_ARGS+=("$arg") ;;
+  esac
+done
+set -- "${PASS_ARGS[@]}"
+export SAASCODE_OUTPUT_FORMAT="$OUTPUT_FORMAT"
+
 LANG=$(detect_language)
 
 # ── Dispatch to language-specific reviewer ──

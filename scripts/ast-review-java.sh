@@ -353,49 +353,45 @@ main() {
   echo "[3/3] Generating report..."
   echo ""
 
-  # Print table
-  if [ -s "$FINDINGS_FILE" ]; then
-    echo ""
-    printf "| %3s | %-40s | %-8s | %-10s | %-60s | %-50s |\n" "#" "File:Line" "Severity" "Confidence" "Issue" "Fix"
-    echo "|-----|------------------------------------------|----------|------------|--------------------------------------------------------------|--------------------------------------------------|"
-    while IFS='|' read -r NUM FILE LINE SEV CONF ISSUE FIX; do
-      local SEV_COLOR
-      [ "$SEV" = "CRITICAL" ] && SEV_COLOR="$RED" || SEV_COLOR="$YELLOW"
-      printf "| %3s | %s:%s | ${SEV_COLOR}%-8s${NC} | %s%% | %s | %s |\n" \
-        "$NUM" "$FILE" "$LINE" "$SEV" "$CONF" "$ISSUE" "$FIX"
-    done < "$FINDINGS_FILE"
-    echo ""
-  fi
+  # Build clean files string
+  local CLEAN_STR=""
+  for CF in "${CLEAN_FILES[@]}"; do
+    CLEAN_STR="${CLEAN_STR}${CF}\n"
+  done
 
-  # Summary
-  echo "========================================"
-  echo "  Files scanned:  $SCANNED"
-  echo -e "  Findings:       ${RED}$CRITICAL_COUNT critical${NC}, ${YELLOW}$WARNING_COUNT warnings${NC}"
-  echo ""
-
-  # Clean files (max 20)
-  if [ ${#CLEAN_FILES[@]} -gt 0 ]; then
-    echo "Clean files (no issues):"
-    local SHOWN=0
-    for CF in "${CLEAN_FILES[@]}"; do
-      [ $SHOWN -ge 20 ] && break
-      echo -e "  ${GREEN}✓${NC} $CF"
-      SHOWN=$((SHOWN + 1))
-    done
-    local REMAINING=$((${#CLEAN_FILES[@]} - SHOWN))
-    [ $REMAINING -gt 0 ] && echo "  ... and $REMAINING more"
+  # Use shared formatter if available, otherwise inline
+  local FORMATTER="$(dirname "$0")/review-formatter.sh"
+  local FMT="${SAASCODE_OUTPUT_FORMAT:-table}"
+  if [ -f "$FORMATTER" ]; then
+    source "$FORMATTER"
+    format_findings "$FINDINGS_FILE" "$FMT" "$SCANNED" "$CRITICAL_COUNT" "$WARNING_COUNT" "java" "$(printf "$CLEAN_STR")"
+  else
+    # Fallback: inline table output
+    if [ -s "$FINDINGS_FILE" ]; then
+      echo ""
+      printf "| %3s | %-40s | %-8s | %-10s | %-60s | %-50s |\n" "#" "File:Line" "Severity" "Confidence" "Issue" "Fix"
+      echo "|-----|------------------------------------------|----------|------------|--------------------------------------------------------------|--------------------------------------------------|"
+      while IFS='|' read -r NUM FILE LINE SEV CONF ISSUE FIX; do
+        local SEV_COLOR
+        [ "$SEV" = "CRITICAL" ] && SEV_COLOR="$RED" || SEV_COLOR="$YELLOW"
+        printf "| %3s | %s:%s | ${SEV_COLOR}%-8s${NC} | %s%% | %s | %s |\n" \
+          "$NUM" "$FILE" "$LINE" "$SEV" "$CONF" "$ISSUE" "$FIX"
+      done < "$FINDINGS_FILE"
+      echo ""
+    fi
+    echo "========================================"
+    echo "  Files scanned:  $SCANNED"
+    echo -e "  Findings:       ${RED}$CRITICAL_COUNT critical${NC}, ${YELLOW}$WARNING_COUNT warnings${NC}"
     echo ""
   fi
 
-  # Verdict
+  # Exit code
   if [ "$CRITICAL_COUNT" -gt 0 ]; then
-    echo -e "${BOLD}VERDICT:${NC} ${RED}REQUEST CHANGES${NC} — $CRITICAL_COUNT critical issues found"
+    [ "$FMT" = "table" ] || true  # JSON/SARIF already printed verdict
     exit 1
   elif [ "$WARNING_COUNT" -gt 0 ]; then
-    echo -e "${BOLD}VERDICT:${NC} ${YELLOW}COMMENT${NC} — $WARNING_COUNT warnings to consider"
     exit 0
   else
-    echo -e "${BOLD}VERDICT:${NC} ${GREEN}APPROVE${NC} — No issues detected"
     exit 0
   fi
 }
