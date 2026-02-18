@@ -1,0 +1,119 @@
+# SaasCode Kit — Go Security Rules
+# Covers: HTTP handler auth, SQL injection, error handling, secrets
+
+rules:
+  # --- SQL Injection ---
+
+  - id: go-sql-injection-sprintf
+    message: |
+      SQL query built with fmt.Sprintf is vulnerable to SQL injection.
+      Use parameterized queries: db.Query("SELECT ... WHERE id = $1", id)
+    severity: ERROR
+    languages: [go]
+    patterns:
+      - pattern: $DB.Query(fmt.Sprintf(...))
+      - pattern: $DB.Exec(fmt.Sprintf(...))
+      - pattern: $DB.QueryRow(fmt.Sprintf(...))
+
+  - id: go-sql-injection-concat
+    message: |
+      SQL query built with string concatenation is vulnerable to SQL injection.
+      Use parameterized queries with $1, $2 placeholders.
+    severity: ERROR
+    languages: [go]
+    patterns:
+      - pattern: $DB.Query("..." + $INPUT + ...)
+      - pattern: $DB.Exec("..." + $INPUT + ...)
+
+  # --- Error Handling ---
+
+  - id: go-error-not-checked
+    message: |
+      Error return value is not checked. Always handle errors in Go.
+      if err != nil { return err }
+    severity: WARNING
+    languages: [go]
+    pattern: $VAR, _ := $FUNC(...)
+
+  - id: go-error-swallowed
+    message: |
+      Error is assigned but never used. Check and handle the error.
+    severity: WARNING
+    languages: [go]
+    pattern: |
+      $VAR, err := $FUNC(...)
+      ...
+    pattern-not: |
+      $VAR, err := $FUNC(...)
+      ...
+      if err != nil { ... }
+
+  # --- Secrets ---
+
+  - id: go-hardcoded-secret
+    message: |
+      Possible hardcoded secret. Use environment variables.
+      Correct: os.Getenv("SECRET_KEY")
+    severity: ERROR
+    languages: [go]
+    pattern-either:
+      - pattern: $VAR := "sk_..."
+      - pattern: $VAR = "sk_..."
+      - pattern: $VAR := "pk_..."
+      - pattern: const SECRET_KEY = "..."
+      - pattern: const API_KEY = "..."
+
+  # --- SSRF ---
+
+  - id: go-ssrf-http-get
+    message: |
+      HTTP request with user-controlled URL may be vulnerable to SSRF.
+      Validate and allowlist URLs before making requests.
+    severity: WARNING
+    languages: [go]
+    patterns:
+      - pattern: http.Get($URL)
+      - pattern-not: http.Get("...")
+
+  # --- Command Injection ---
+
+  - id: go-command-injection
+    message: |
+      exec.Command with user input is vulnerable to command injection.
+      Validate input and avoid passing user data to shell commands.
+    severity: ERROR
+    languages: [go]
+    patterns:
+      - pattern: exec.Command($CMD, ...)
+      - pattern-not: exec.Command("...", ...)
+
+  # --- Sensitive Logging ---
+
+  - id: go-sensitive-logging
+    message: |
+      Logging potentially sensitive data. Redact sensitive fields.
+    severity: WARNING
+    languages: [go]
+    pattern-either:
+      - pattern: fmt.Println(... + $VAR + ...)
+      - pattern: log.Println(... + $VAR + ...)
+      - pattern: fmt.Printf(... , $VAR, ...)
+    metavariable-regex:
+      metavariable: $VAR
+      regex: ".*(password|token|secret|key|credential).*"
+
+  # --- Crypto ---
+
+  - id: go-weak-crypto-md5
+    message: |
+      MD5 is cryptographically broken. Use SHA-256 or better.
+    severity: ERROR
+    languages: [go]
+    pattern: md5.New()
+
+  - id: go-weak-crypto-sha1
+    message: |
+      SHA-1 is deprecated for security purposes. Use SHA-256 or better.
+    severity: WARNING
+    languages: [go]
+    pattern: sha1.New()

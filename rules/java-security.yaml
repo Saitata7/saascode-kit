@@ -1,0 +1,144 @@
+# SaasCode Kit — Java Security Rules
+# Covers: Spring Security auth, JDBC injection, secrets, XSS
+
+rules:
+  # --- Authentication ---
+
+  - id: spring-controller-no-auth
+    message: |
+      Spring controller method without @PreAuthorize, @Secured, or @RolesAllowed.
+      Add authorization annotation to restrict access.
+    severity: WARNING
+    languages: [java]
+    patterns:
+      - pattern: |
+          @$MAPPING(...)
+          public $RET $METHOD(...) { ... }
+      - pattern-not-inside: |
+          @PreAuthorize(...)
+          @$MAPPING(...)
+          public $RET $METHOD(...) { ... }
+      - pattern-not-inside: |
+          @Secured(...)
+          @$MAPPING(...)
+          public $RET $METHOD(...) { ... }
+    paths:
+      include:
+        - "**/*Controller.java"
+
+  - id: spring-missing-valid
+    message: |
+      @RequestBody without @Valid skips input validation.
+      Add @Valid: public ResponseEntity create(@Valid @RequestBody CreateDto dto)
+    severity: WARNING
+    languages: [java]
+    pattern: |
+      public $RET $METHOD(..., @RequestBody $TYPE $PARAM, ...) { ... }
+    pattern-not: |
+      public $RET $METHOD(..., @Valid @RequestBody $TYPE $PARAM, ...) { ... }
+
+  # --- SQL Injection ---
+
+  - id: java-sql-injection-concat
+    message: |
+      SQL query built with string concatenation is vulnerable to SQL injection.
+      Use PreparedStatement with parameterized queries instead.
+    severity: ERROR
+    languages: [java]
+    patterns:
+      - pattern: $STMT.executeQuery("..." + $INPUT + ...)
+      - pattern: $STMT.execute("..." + $INPUT + ...)
+      - pattern: $STMT.executeUpdate("..." + $INPUT + ...)
+
+  - id: java-sql-injection-format
+    message: |
+      SQL query built with String.format() is vulnerable to SQL injection.
+      Use PreparedStatement with ? placeholders instead.
+    severity: ERROR
+    languages: [java]
+    patterns:
+      - pattern: $STMT.executeQuery(String.format(...))
+      - pattern: $STMT.execute(String.format(...))
+
+  - id: spring-jpa-native-query-concat
+    message: |
+      Native JPA query with string concatenation. Use parameterized @Query instead.
+      Correct: @Query(value = "SELECT ... WHERE id = :id", nativeQuery = true)
+    severity: ERROR
+    languages: [java]
+    pattern: |
+      @Query(value = "..." + $INPUT + ..., nativeQuery = true)
+
+  # --- Secrets ---
+
+  - id: java-hardcoded-secret
+    message: |
+      Possible hardcoded secret. Use environment variables or config files.
+      Correct: @Value("${secret.key}") or System.getenv("SECRET_KEY")
+    severity: ERROR
+    languages: [java]
+    pattern-either:
+      - pattern: String $VAR = "sk_...";
+      - pattern: String $VAR = "pk_...";
+      - pattern: String SECRET_KEY = "...";
+      - pattern: String API_KEY = "...";
+      - pattern: String PASSWORD = "...";
+
+  # --- Sensitive Logging ---
+
+  - id: java-sensitive-logging
+    message: |
+      Logging potentially sensitive data. Redact sensitive fields before logging.
+    severity: WARNING
+    languages: [java]
+    pattern-either:
+      - pattern: $LOG.info(... + $VAR + ...)
+      - pattern: $LOG.debug(... + $VAR + ...)
+      - pattern: System.out.println(... + $VAR + ...)
+    metavariable-regex:
+      metavariable: $VAR
+      regex: ".*(password|token|secret|key|credential).*"
+
+  # --- Dangerous Patterns ---
+
+  - id: java-empty-catch
+    message: |
+      Empty catch block silently swallows exceptions.
+      At minimum, log the exception: logger.error("Error", e);
+    severity: WARNING
+    languages: [java]
+    pattern: |
+      try { ... } catch ($TYPE $EX) { }
+
+  - id: java-runtime-exec
+    message: |
+      Runtime.exec() with user input is vulnerable to command injection.
+      Validate and sanitize input, or use ProcessBuilder with argument list.
+    severity: ERROR
+    languages: [java]
+    patterns:
+      - pattern: Runtime.getRuntime().exec($CMD)
+      - pattern-not: Runtime.getRuntime().exec("...")
+
+  # --- SSRF ---
+
+  - id: java-ssrf-url
+    message: |
+      Opening URL connection with user-controlled input may be vulnerable to SSRF.
+      Validate and allowlist URLs before connecting.
+    severity: WARNING
+    languages: [java]
+    patterns:
+      - pattern: new URL($INPUT).openConnection()
+      - pattern-not: new URL("...").openConnection()
+
+  # --- XSS (Spring) ---
+
+  - id: spring-response-body-unescaped
+    message: |
+      Returning raw HTML in response body without escaping.
+      Use @ResponseBody with proper content type or escape HTML output.
+    severity: WARNING
+    languages: [java]
+    pattern: |
+      response.getWriter().write($INPUT)

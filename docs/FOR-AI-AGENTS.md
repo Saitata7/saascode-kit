@@ -83,15 +83,23 @@ saascode-kit/
 ├── scripts/              # Core scripts only (.sh, .ts, .py, .js)
 ├── templates/            # Template files only
 ├── hooks/                # Git hooks only
+├── skills/               # Claude Code skills (.md files)
+├── cursor-rules/         # Cursor rules (.mdc files)
+├── rules/                # Semgrep rule sets (.yaml files)
+├── checklists/           # Quality checklists (.md files)
+├── ci/                   # CI pipeline templates
 ├── tests/                # Test infrastructure
 │   ├── run-tests.sh      # Single test runner (don't create alternates)
 │   ├── TEST-RESULTS.md   # Latest results (update this)
-│   ├── CLAUDE-TEST-RESULTS.md  # Capabilities doc (don't duplicate)
 │   ├── TEST-SCORECARD.md # Testing guide (reference only)
 │   └── README.md         # Quick start
 ├── docs/                 # User documentation only
-├── .cursorrules          # Cursor-specific constraints
-└── AI-AGENT-GUIDELINES.md  # This file
+│   └── FOR-AI-AGENTS.md  # This file
+├── CLAUDE.md             # Claude Code project context (auto-loaded)
+├── .cursorrules          # Cursor constraints (auto-loaded)
+├── .windsurfrules        # Windsurf constraints (auto-loaded)
+├── .claude/              # Claude Code config (settings, docs)
+└── .github/              # GitHub templates (PR, issues)
 ```
 
 ---
@@ -108,31 +116,39 @@ Before claiming something exists or works:
 
 ---
 
-## 🎯 Cursor-Specific Issues & Fixes
+## 🎯 IDE-Specific Guidance
 
-### Issue 1: Creating Unwanted MD Files
+### Claude Code
 
-**Problem:** Cursor creates TEMP-*.md, ANALYSIS-*.md, TEST-CURSOR-*.md files.
+- `CLAUDE.md` auto-loads at project root — your primary instructions
+- `.claude/settings.json` defines allowed/denied commands
+- `.claude/docs/` has detailed architecture and conventions
+- 15 skills available via `/command` (e.g., `/build`, `/review`, `/audit`)
+- PostToolUse hooks auto-validate every edit via `check-file.sh`
 
-**Fix:**
-- Read `.cursorrules` before starting work
+### Cursor
+
+- `.cursorrules` auto-loads at project root — file creation rules, validation commands
+- `.cursor/rules/*.mdc` files auto-attach based on glob patterns (e.g., editing a controller loads `backend-controller.mdc`)
+- Common issue: Cursor creates TEMP-*.md, ANALYSIS-*.md files — always ask user before creating ANY .md file
+
+### Windsurf
+
+- `.windsurfrules` auto-loads at project root — same rules as `.cursorrules`
+- No glob-based rules (Windsurf doesn't support `.mdc` format)
+- Follow the same file creation policy and validation commands as Cursor
+
+### All IDEs — Common Issues
+
+**Issue 1: Creating Unwanted Files**
 - Ask user before creating ANY .md file
 - Use existing files for documentation
 
-### Issue 2: Not Following Organization
-
-**Problem:** Files created in wrong directories.
-
-**Fix:**
+**Issue 2: Wrong Directories**
 - Check directory structure above before creating files
 - Put scripts in scripts/, tests in tests/, docs in docs/
-- When unsure, ask: "Should this go in [directory]?"
 
-### Issue 3: Hallucinating Features
-
-**Problem:** Referencing non-existent commands, files, or capabilities.
-
-**Fix:**
+**Issue 3: Hallucinating Features**
 - Use Grep to search before claiming something exists
 - Read files before modifying them
 - Test commands before documenting them
@@ -246,5 +262,5 @@ Creating unwanted files wastes everyone's time:
 
 ---
 
-**Last Updated:** February 13, 2026
-**Tested With:** Claude Code (Sonnet 4.5), Cursor (Auto mode)
+**Last Updated:** February 18, 2026
+**Tested With:** Claude Code (Opus 4.6, Sonnet 4.5), Cursor (Auto mode), Windsurf

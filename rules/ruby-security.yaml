@@ -1,0 +1,136 @@
+# SaasCode Kit — Ruby/Rails Security Rules
+# Covers: Rails auth, mass assignment, SQL injection, XSS
+
+rules:
+  # --- Authentication ---
+
+  - id: rails-controller-no-auth
+    message: |
+      Rails controller without before_action for authentication.
+      Add: before_action :authenticate_user! or similar auth check.
+    severity: WARNING
+    languages: [ruby]
+    pattern: |
+      class $CONTROLLER < ApplicationController
+        ...
+      end
+    pattern-not: |
+      class $CONTROLLER < ApplicationController
+        before_action :authenticate_user!
+        ...
+      end
+    paths:
+      include:
+        - "**/*_controller.rb"
+
+  # --- SQL Injection ---
+
+  - id: rails-sql-injection-interpolation
+    message: |
+      SQL query with string interpolation is vulnerable to SQL injection.
+      Use parameterized queries: where("name = ?", name) or where(name: name)
+    severity: ERROR
+    languages: [ruby]
+    patterns:
+      - pattern: $MODEL.where("...#{$INPUT}...")
+      - pattern: $MODEL.find_by_sql("...#{$INPUT}...")
+      - pattern: $MODEL.order("...#{$INPUT}...")
+
+  - id: rails-raw-sql-interpolation
+    message: |
+      Raw SQL with string interpolation. Use sanitize_sql or parameterized queries.
+    severity: ERROR
+    languages: [ruby]
+    patterns:
+      - pattern: ActiveRecord::Base.connection.execute("...#{$INPUT}...")
+      - pattern: $CONN.exec_query("...#{$INPUT}...")
+
+  # --- Mass Assignment ---
+
+  - id: rails-permit-all
+    message: |
+      permit! allows all parameters — vulnerable to mass assignment.
+      Explicitly whitelist parameters: params.require(:model).permit(:field1, :field2)
+    severity: ERROR
+    languages: [ruby]
+    pattern: params.permit!
+
+  # --- Secrets ---
+
+  - id: ruby-hardcoded-secret
+    message: |
+      Possible hardcoded secret. Use Rails credentials or environment variables.
+      Correct: ENV["SECRET_KEY"] or Rails.application.credentials.secret_key
+    severity: ERROR
+    languages: [ruby]
+    pattern-either:
+      - pattern: $VAR = "sk_..."
+      - pattern: SECRET_KEY = "..."
+      - pattern: API_KEY = "..."
+
+  # --- XSS ---
+
+  - id: rails-html-safe
+    message: |
+      .html_safe on user input can lead to XSS attacks.
+      Sanitize with sanitize() helper before marking as safe.
+    severity: ERROR
+    languages: [ruby]
+    pattern: $INPUT.html_safe
+
+  - id: rails-raw-helper
+    message: |
+      raw() disables HTML escaping — vulnerable to XSS with user input.
+      Use sanitize() instead.
+    severity: WARNING
+    languages: [ruby]
+    pattern: raw($INPUT)
+
+  # --- Dangerous Functions ---
+
+  - id: ruby-eval-usage
+    message: |
+      eval() executes arbitrary code. Never use with user input.
+    severity: ERROR
+    languages: [ruby]
+    pattern: eval(...)
+
+  - id: ruby-system-command
+    message: |
+      System command with user input is vulnerable to command injection.
+      Use Open3 with separate arguments instead.
+    severity: ERROR
+    languages: [ruby]
+    patterns:
+      - pattern: system($CMD)
+      - pattern-not: system("...")
+
+  # --- Sensitive Logging ---
+
+  - id: ruby-sensitive-logging
+    message: |
+      Logging potentially sensitive data. Filter sensitive parameters.
+      Add to config: config.filter_parameters += [:password, :token, :secret]
+    severity: WARNING
+    languages: [ruby]
+    pattern-either:
+      - pattern: Rails.logger.$METHOD(... + $VAR + ...)
+      - pattern: puts(... + $VAR + ...)
+    metavariable-regex:
+      metavariable: $VAR
+      regex: ".*(password|token|secret|key|credential).*"
+
+  # --- Error Handling ---
+
+  - id: ruby-bare-rescue
+    message: |
+      Bare rescue catches all exceptions including SystemExit.
+      Use 'rescue StandardError => e' to catch only standard errors.
+    severity: WARNING
+    languages: [ruby]
+    pattern: |
+      begin
+        ...
+      rescue
+        ...
+      end

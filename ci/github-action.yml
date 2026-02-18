@@ -1,6 +1,6 @@
 # SaasCode Kit — GitHub Actions Code Review Pipeline
 # Runs on every PR: build, test, security scan, pattern check
-# Customize paths from manifest.yaml
+# Paths are substituted from manifest.yaml during `saascode init`
 
 name: SaasCode Review
 
@@ -11,34 +11,96 @@ on:
     branches: [main]
 
 env:
-  # Set these from manifest.yaml paths
-  BACKEND_PATH: "apps/api"         # {{paths.backend}}
-  FRONTEND_PATH: "apps/portal"     # {{paths.frontend}}
-  API_CLIENT_PATH: "apps/portal/src/lib/api"  # {{paths.api_client}}
+  BACKEND_PATH: "{{paths.backend}}"
+  FRONTEND_PATH: "{{paths.frontend}}"
+  API_CLIENT_PATH: "{{paths.api_client}}"
 
 jobs:
   # ─── Build & Type Check ───
   build:
-    name: Build & TypeScript
+    name: Build & Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+{{#if_eq stack.language "typescript"}}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
-
       - run: npm ci
-
       - name: TypeScript Check
         run: npm run typecheck
-
       - name: Build Backend
         run: npm --prefix $BACKEND_PATH run build 2>/dev/null || npm run build
-
       - name: Build Frontend
         run: npm --prefix $FRONTEND_PATH run build 2>/dev/null || npm run build:frontend 2>/dev/null || true
+{{/if_eq}}
+
+{{#if_eq stack.language "javascript"}}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - run: npm ci
+      - name: Build Backend
+        run: npm --prefix $BACKEND_PATH run build 2>/dev/null || npm run build
+      - name: Build Frontend
+        run: npm --prefix $FRONTEND_PATH run build 2>/dev/null || true
+{{/if_eq}}
+
+{{#if_eq stack.language "python"}}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Type Check
+        run: mypy . --ignore-missing-imports 2>/dev/null || echo "mypy not configured"
+{{/if_eq}}
+
+{{#if_eq stack.language "go"}}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go mod download
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./...
+{{/if_eq}}
+
+{{#if_eq stack.language "java"}}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Build
+        run: |
+          if [ -f "mvnw" ]; then ./mvnw -q package -DskipTests
+          elif [ -f "gradlew" ]; then ./gradlew build -x test
+          else echo "No build tool found"; fi
+{{/if_eq}}
+
+{{#if_eq stack.language "ruby"}}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bundle install
+{{/if_eq}}
+
+{{#if_eq stack.language "rust"}}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check
+      - run: cargo build --release
+{{/if_eq}}
+
+{{#if_eq stack.language "php"}}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+      - run: composer install --no-dev
+{{/if_eq}}
 
   # ─── Tests ───
   test:
@@ -47,14 +109,77 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v4
+
+{{#if_eq stack.language "typescript"}}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
       - run: npm ci
-
       - name: Run Tests
         run: npm --prefix $BACKEND_PATH run test 2>/dev/null || npm test
+{{/if_eq}}
+
+{{#if_eq stack.language "javascript"}}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - run: npm ci
+      - name: Run Tests
+        run: npm test
+{{/if_eq}}
+
+{{#if_eq stack.language "python"}}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run Tests
+        run: python -m pytest 2>/dev/null || python manage.py test
+{{/if_eq}}
+
+{{#if_eq stack.language "go"}}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go mod download
+      - name: Run Tests
+        run: go test ./...
+{{/if_eq}}
+
+{{#if_eq stack.language "java"}}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Run Tests
+        run: |
+          if [ -f "mvnw" ]; then ./mvnw test
+          elif [ -f "gradlew" ]; then ./gradlew test
+          else echo "No test runner found"; fi
+{{/if_eq}}
+
+{{#if_eq stack.language "ruby"}}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - run: bundle exec rspec 2>/dev/null || bundle exec rails test
+{{/if_eq}}
+
+{{#if_eq stack.language "rust"}}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+{{/if_eq}}
+
+{{#if_eq stack.language "php"}}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+      - run: composer install
+      - run: ./vendor/bin/phpunit
+{{/if_eq}}
 
   # ─── Security Scan ───
   security:
@@ -62,18 +187,77 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+{{#if_eq stack.language "typescript"}}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
       - run: npm ci
-
       - name: npm Audit
         run: npm audit --audit-level=high
         continue-on-error: true
+{{/if_eq}}
+
+{{#if_eq stack.language "python"}}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit 2>/dev/null || true
+      - name: pip Audit
+        run: pip-audit 2>/dev/null || echo "pip-audit not available"
+        continue-on-error: true
+{{/if_eq}}
+
+{{#if_eq stack.language "go"}}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
+        continue-on-error: true
+{{/if_eq}}
+
+{{#if_eq stack.language "java"}}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dependency Check
+        run: |
+          if [ -f "mvnw" ]; then ./mvnw org.owasp:dependency-check-maven:check 2>/dev/null || echo "OWASP plugin not configured"
+          else echo "Skipping dependency check"; fi
+        continue-on-error: true
+{{/if_eq}}
+
+{{#if_eq stack.language "ruby"}}
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Bundle Audit
+        run: gem install bundler-audit && bundle-audit check --update
+        continue-on-error: true
+{{/if_eq}}
+
+{{#if_eq stack.language "rust"}}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo Audit
+        run: cargo install cargo-audit && cargo audit
+        continue-on-error: true
+{{/if_eq}}
+
+{{#if_eq stack.language "php"}}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+      - name: Composer Audit
+        run: composer audit
+        continue-on-error: true
+{{/if_eq}}
 
       - name: Semgrep Scan
-        uses: returntocorp/semgrep-action@v1
+        uses: semgrep/semgrep-action@v1
         with:
           config: .saascode/rules/
         continue-on-error: true
@@ -89,37 +273,48 @@ jobs:
         run: |
           echo "=== Frontend API Calls ==="
           if [ -d "$API_CLIENT_PATH" ]; then
-            grep -rE "apiClient\.(get|post|patch|delete)" $API_CLIENT_PATH/*.ts 2>/dev/null || echo "(no apiClient calls found)"
+            grep -rE "apiClient\.(get|post|patch|delete)" $API_CLIENT_PATH/ 2>/dev/null || echo "(no apiClient calls found)"
           else
-            echo "(API client path not found: $API_CLIENT_PATH)"
+            echo "(API client path not found: $API_CLIENT_PATH — skipping)"
           fi
 
           echo ""
           echo "=== Backend Endpoints ==="
-          if ls $BACKEND_PATH/src/modules/*/*.controller.ts 1>/dev/null 2>&1; then
-            grep -rE "@(Get|Post|Patch|Put|Delete)" $BACKEND_PATH/src/modules/*/*.controller.ts || true
-          elif ls $BACKEND_PATH/src/**/*.controller.ts 1>/dev/null 2>&1; then
-            grep -rE "@(Get|Post|Patch|Put|Delete)" $BACKEND_PATH/src/**/*.controller.ts || true
-          else
-            echo "(no controller files found — skipping NestJS-specific check)"
-          fi
+{{#if_eq auth.guard_pattern "decorator"}}
+          # NestJS decorator-based pattern
+          find $BACKEND_PATH/src -name "*.controller.ts" 2>/dev/null | head -20 | while read f; do
+            grep -n "@(Get|Post|Patch|Put|Delete)" "$f" 2>/dev/null || true
+          done
+          [ $? -eq 0 ] || echo "(no controller files found)"
+{{/if_eq}}
+{{#if_eq auth.guard_pattern "middleware"}}
+          # Express/Fastify middleware-based pattern
+          find $BACKEND_PATH -name "*.routes.*" -o -name "*.router.*" 2>/dev/null | head -20 | while read f; do
+            grep -n "router\.\(get\|post\|patch\|put\|delete\)" "$f" 2>/dev/null || true
+          done
+          [ $? -eq 0 ] || echo "(no route files found)"
+{{/if_eq}}
+{{#if_eq auth.guard_pattern "policy"}}
+          # Policy-based pattern (Django, Rails, Laravel)
+          echo "(pattern check uses saascode parity for policy-based frameworks)"
+{{/if_eq}}
 
           echo ""
           echo "Verify each frontend call has a matching backend endpoint."
 
-      # NestJS-specific: Auth Guard Check (only runs if NestJS controllers exist)
-      - name: Auth Guard Check
+{{#if_eq auth.guard_pattern "decorator"}}
+      - name: Auth Guard Check (NestJS)
         run: |
-          if ! ls $BACKEND_PATH/src/modules/**/*.controller.ts 1>/dev/null 2>&1; then
+          CONTROLLERS=$(find $BACKEND_PATH/src -name "*.controller.ts" 2>/dev/null)
+          if [ -z "$CONTROLLERS" ]; then
             echo "SKIPPED: No NestJS controllers found."
             exit 0
           fi
 
           echo "=== Checking for @Roles without RolesGuard ==="
-          ISSUES=$(grep -rn "@Roles(" --include="*.ts" $BACKEND_PATH/src/modules/ 2>/dev/null | while read line; do
-            FILE=$(echo "$line" | cut -d: -f1)
-            if ! grep -q "RolesGuard" "$FILE"; then
-              echo "CRITICAL: $line — Missing RolesGuard!"
+          ISSUES=$(echo "$CONTROLLERS" | while read FILE; do
+            if grep -q "@Roles(" "$FILE" && ! grep -q "RolesGuard" "$FILE"; then
+              echo "CRITICAL: $FILE — @Roles without RolesGuard!"
             fi
           done)
 
@@ -131,31 +326,33 @@ jobs:
           else
             echo "PASSED: All @Roles have accompanying RolesGuard."
           fi
+{{/if_eq}}
 
-      # NestJS-specific: Tenant Isolation Check (only runs if NestJS services exist)
+{{#if tenancy.enabled}}
       - name: Tenant Isolation Check
         run: |
-          if ! ls $BACKEND_PATH/src/modules/**/*.service.ts 1>/dev/null 2>&1; then
-            echo "SKIPPED: No NestJS services found."
-            exit 0
-          fi
-
           echo "=== Checking for unscoped queries ==="
-          UNSCOPED=$(grep -rn "findMany()" --include="*.service.ts" $BACKEND_PATH/src/modules/ 2>/dev/null | grep -v "tenantId" || true)
-
+{{#if_eq stack.language "typescript"}}
+          UNSCOPED=$(grep -rn "findMany()" --include="*.service.ts" $BACKEND_PATH/src/ 2>/dev/null | grep -v "{{tenancy.identifier}}" || true)
+{{/if_eq}}
+{{#if_eq stack.language "python"}}
+          UNSCOPED=$(grep -rn "\.objects\.all()\|\.objects\.filter(" --include="*.py" $BACKEND_PATH/ 2>/dev/null | grep -v "{{tenancy.identifier}}" || true)
+{{/if_eq}}
+{{#if_eq stack.language "ruby"}}
+          UNSCOPED=$(grep -rn "\.all\|\.where(" --include="*.rb" $BACKEND_PATH/ 2>/dev/null | grep -v "{{tenancy.identifier}}" || true)
+{{/if_eq}}
           if [ -n "$UNSCOPED" ]; then
             echo "WARNING: Potentially unscoped queries found:"
             echo "$UNSCOPED"
           else
-            echo "PASSED: No unscoped findMany() detected."
+            echo "PASSED: No unscoped queries detected."
           fi
+{{/if}}
 
       - name: Secrets Check
         run: |
           echo "=== Checking for hardcoded secrets ==="
-          SECRETS=""
-          [ -d "$BACKEND_PATH/src" ] && SECRETS=$(grep -rn "password\s*=\|secret\s*=\|api[_-]\?key\s*=" --include="*.ts" $BACKEND_PATH/src/ $FRONTEND_PATH/src/ 2>/dev/null | grep -v "process.env\|@Is\|interface\|type \|\.d\.ts" || true)
-          [ -z "$SECRETS" ] && [ -d "$FRONTEND_PATH/src" ] && SECRETS=$(grep -rn "password\s*=\|secret\s*=\|api[_-]\?key\s*=" --include="*.ts" $FRONTEND_PATH/src/ 2>/dev/null | grep -v "process.env\|@Is\|interface\|type \|\.d\.ts" || true)
+          SECRETS=$(grep -rn "password\s*=\|secret\s*=\|api[_-]\?key\s*=" --include="*.ts" --include="*.js" --include="*.py" --include="*.rb" --include="*.java" --include="*.go" --include="*.php" $BACKEND_PATH/ $FRONTEND_PATH/ 2>/dev/null | grep -v "process.env\|os.environ\|ENV\[.*\]\|System.getenv\|os.Getenv\|\.env\|@Is\|interface\|type \|\.d\.ts\|#.*password\|//.*password" || true)
 
           if [ -n "$SECRETS" ]; then
             echo "WARNING: Possible hardcoded secrets:"
@@ -166,13 +363,13 @@ jobs:
 
       - name: XSS Check
         run: |
-          echo "=== Checking for dangerouslySetInnerHTML ==="
+          echo "=== Checking for XSS vulnerabilities ==="
           XSS=""
-          [ -d "$FRONTEND_PATH/src" ] && XSS=$(grep -rn "dangerouslySetInnerHTML" --include="*.tsx" --include="*.jsx" $FRONTEND_PATH/src/ 2>/dev/null || true)
+          [ -d "$FRONTEND_PATH" ] && XSS=$(grep -rn "dangerouslySetInnerHTML\|v-html\|innerHTML\s*=" --include="*.tsx" --include="*.jsx" --include="*.vue" --include="*.svelte" $FRONTEND_PATH/ 2>/dev/null || true)
 
           if [ -n "$XSS" ]; then
-            echo "WARNING: dangerouslySetInnerHTML found:"
+            echo "WARNING: Potential XSS found:"
             echo "$XSS"
           else
-            echo "PASSED: No dangerouslySetInnerHTML detected."
+            echo "PASSED: No XSS vulnerabilities detected."
           fi

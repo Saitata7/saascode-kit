@@ -1,0 +1,167 @@
+# SaasCode Kit — Python Security Rules
+# Covers: Django/Flask auth, SQL injection, SSRF, secrets, XSS
+
+rules:
+  # --- Authentication ---
+
+  - id: django-view-missing-permission
+    message: |
+      Django view without permission_classes or @login_required.
+      Add @login_required, @permission_required, or permission_classes to restrict access.
+    severity: WARNING
+    languages: [python]
+    patterns:
+      - pattern: |
+          def $VIEW(request, ...):
+              ...
+      - pattern-not-inside: |
+          @login_required
+          def $VIEW(request, ...):
+              ...
+      - pattern-not-inside: |
+          @permission_required(...)
+          def $VIEW(request, ...):
+              ...
+    paths:
+      include:
+        - "**/views.py"
+        - "**/views/*.py"
+
+  - id: flask-route-no-auth
+    message: |
+      Flask route without @login_required or authentication check.
+      Add authentication decorator to protect this endpoint.
+    severity: WARNING
+    languages: [python]
+    pattern: |
+      @$APP.route(...)
+      def $FUNC(...):
+          ...
+    paths:
+      include:
+        - "**/routes.py"
+        - "**/views.py"
+
+  # --- SQL Injection ---
+
+  - id: python-sql-injection-fstring
+    message: |
+      SQL query built with f-string is vulnerable to SQL injection.
+      Use parameterized queries: cursor.execute("SELECT ... WHERE id = %s", (id,))
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern: $CURSOR.execute(f"...{$INPUT}...")
+      - pattern: $CURSOR.execute(f'...{$INPUT}...')
+
+  - id: python-sql-injection-format
+    message: |
+      SQL query built with .format() is vulnerable to SQL injection.
+      Use parameterized queries instead.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern: $CURSOR.execute("...".format(...))
+      - pattern: $CURSOR.execute('...'.format(...))
+
+  - id: python-sql-injection-percent
+    message: |
+      SQL query built with % string formatting is vulnerable to SQL injection.
+      Use parameterized queries: cursor.execute("... WHERE id = %s", (id,))
+    severity: ERROR
+    languages: [python]
+    pattern: $CURSOR.execute("..." % $INPUT)
+
+  - id: django-raw-sql-interpolation
+    message: |
+      Django raw() with string interpolation. Use params argument instead.
+      Correct: Model.objects.raw("SELECT ... WHERE id = %s", [id])
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern: $MODEL.objects.raw(f"...{$INPUT}...")
+      - pattern: $MODEL.objects.raw("...".format(...))
+      - pattern: $MODEL.objects.raw("..." % $INPUT)
+
+  # --- Secrets ---
+
+  - id: python-hardcoded-secret
+    message: |
+      Possible hardcoded secret. Use environment variables instead.
+      Correct: os.environ.get("SECRET_KEY") or settings.SECRET_KEY
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: $VAR = "sk_..."
+      - pattern: $VAR = "pk_..."
+      - pattern: SECRET_KEY = "..."
+      - pattern: API_KEY = "..."
+      - pattern: PASSWORD = "..."
+
+  # --- SSRF ---
+
+  - id: python-ssrf-requests
+    message: |
+      HTTP request with user-controlled URL may be vulnerable to SSRF.
+      Validate and allowlist URLs before making requests.
+    severity: WARNING
+    languages: [python]
+    patterns:
+      - pattern: requests.get($URL, ...)
+      - pattern-not: requests.get("...", ...)
+
+  # --- Dangerous Functions ---
+
+  - id: python-eval-usage
+    message: |
+      eval() executes arbitrary code. Never use with user input.
+      Use ast.literal_eval() for safe evaluation of literals.
+    severity: ERROR
+    languages: [python]
+    pattern: eval(...)
+
+  - id: python-exec-usage
+    message: |
+      exec() executes arbitrary code. Avoid in production code.
+    severity: ERROR
+    languages: [python]
+    pattern: exec(...)
+
+  # --- Sensitive Logging ---
+
+  - id: python-sensitive-logging
+    message: |
+      Logging potentially sensitive data (password, token, secret, key).
+      Redact sensitive fields before logging.
+    severity: WARNING
+    languages: [python]
+    pattern-either:
+      - pattern: logging.$METHOD(... + $VAR + ...)
+      - pattern: print(... + $VAR + ...)
+    metavariable-regex:
+      metavariable: $VAR
+      regex: ".*(password|token|secret|key|credential).*"
+
+  # --- Django XSS ---
+
+  - id: django-mark-safe
+    message: |
+      mark_safe() with user-controlled input can lead to XSS.
+      Sanitize input before marking as safe.
+    severity: ERROR
+    languages: [python]
+    pattern: mark_safe($INPUT)
+
+  # --- Bare Except ---
+
+  - id: python-bare-except
+    message: |
+      Bare except catches all exceptions including SystemExit and KeyboardInterrupt.
+      Use 'except Exception:' to catch only standard exceptions.
+    severity: WARNING
+    languages: [python]
+    pattern: |
+      try:
+          ...
+      except:
+          ...

@@ -139,6 +139,15 @@ if [ "$INSTALL_TEMPLATES" = true ]; then
     INSTALLED=$((INSTALLED + 1))
   fi
 
+  # Golden reference — generate to .claude/context/ for /build skill
+  if [ -f "$KIT_DIR/templates/golden-reference.md.template" ]; then
+    mkdir -p "$TARGET/.claude/context"
+    cp "$KIT_DIR/templates/golden-reference.md.template" "$TARGET/.claude/context/golden-reference.md"
+    replace_placeholders "$TARGET/.claude/context/golden-reference.md"
+    echo "  ${GREEN}✓${NC} .claude/context/golden-reference.md"
+    INSTALLED=$((INSTALLED + 1))
+  fi
+
   # .cursorrules — generate ONLY if .cursor/ directory or .cursorrules already exists
   if [ -d "$TARGET/.cursor" ] || [ -f "$TARGET/.cursorrules" ]; then
     cp "$KIT_DIR/templates/cursorrules.template" "$TARGET/.cursorrules"
@@ -207,12 +216,31 @@ if [ "$INSTALL_RULES" = true ]; then
   echo "${YELLOW}[Semgrep Rules]${NC}"
   mkdir -p "$TARGET/.saascode/rules"
 
-  for RULE in "$KIT_DIR"/rules/*.yaml; do
-    RULE_NAME=$(basename "$RULE")
-    cp "$RULE" "$TARGET/.saascode/rules/$RULE_NAME"
-    echo "  ${GREEN}✓${NC} .saascode/rules/$RULE_NAME"
-    INSTALLED=$((INSTALLED + 1))
+  # Always install universal rules (security.yaml covers TS/JS + some cross-lang)
+  for RULE in "$KIT_DIR"/rules/security.yaml "$KIT_DIR"/rules/auth-guards.yaml "$KIT_DIR"/rules/tenant-isolation.yaml "$KIT_DIR"/rules/input-validation.yaml "$KIT_DIR"/rules/ui-consistency.yaml; do
+    if [ -f "$RULE" ]; then
+      RULE_NAME=$(basename "$RULE")
+      cp "$RULE" "$TARGET/.saascode/rules/$RULE_NAME"
+      echo "  ${GREEN}✓${NC} .saascode/rules/$RULE_NAME"
+      INSTALLED=$((INSTALLED + 1))
+    fi
   done
+
+  # Install language-specific rules based on stackLanguage
+  LANG_RULE=""
+  case "$LANGUAGE" in
+    python)  LANG_RULE="python-security.yaml" ;;
+    java)    LANG_RULE="java-security.yaml" ;;
+    go)      LANG_RULE="go-security.yaml" ;;
+    ruby)    LANG_RULE="ruby-security.yaml" ;;
+    php)     LANG_RULE="php-security.yaml" ;;
+  esac
+
+  if [ -n "$LANG_RULE" ] && [ -f "$KIT_DIR/rules/$LANG_RULE" ]; then
+    cp "$KIT_DIR/rules/$LANG_RULE" "$TARGET/.saascode/rules/$LANG_RULE"
+    echo "  ${GREEN}✓${NC} .saascode/rules/$LANG_RULE (language-specific)"
+    INSTALLED=$((INSTALLED + 1))
+  fi
 fi
 
 # ─── 4. Git Hooks ───
@@ -255,15 +283,11 @@ if [ "$INSTALL_CI" = true ]; then
     mkdir -p "$TARGET/.github/workflows"
     cp "$KIT_DIR/ci/github-action.yml" "$TARGET/.github/workflows/saascode.yml"
 
-    # Update paths in GitHub Action
-    sed -i.bak \
-      -e "s|BACKEND_PATH:.*|BACKEND_PATH: \"$BACKEND_PATH\"|" \
-      -e "s|FRONTEND_PATH:.*|FRONTEND_PATH: \"$FRONTEND_PATH\"|" \
-      -e "s|API_CLIENT_PATH:.*|API_CLIENT_PATH: \"$API_CLIENT_PATH\"|" \
-      "$TARGET/.github/workflows/saascode.yml"
-    rm -f "$TARGET/.github/workflows/saascode.yml.bak"
+    # Process conditionals first (language-specific blocks), then replace placeholders
+    process_conditionals "$TARGET/.github/workflows/saascode.yml"
+    replace_placeholders "$TARGET/.github/workflows/saascode.yml"
 
-    echo "  ${GREEN}✓${NC} .github/workflows/saascode.yml"
+    echo "  ${GREEN}✓${NC} .github/workflows/saascode.yml (language: $LANGUAGE)"
     INSTALLED=$((INSTALLED + 1))
   else
     echo "  ${YELLOW}⚠ CI provider '$CI_PROVIDER' — only GitHub Actions supported in v1${NC}"

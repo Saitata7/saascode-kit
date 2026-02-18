@@ -1,0 +1,121 @@
+# SaasCode Kit — PHP/Laravel Security Rules
+# Covers: Laravel auth, SQL injection, XSS, secrets
+
+rules:
+  # --- Authentication ---
+
+  - id: laravel-route-no-middleware
+    message: |
+      Laravel route without auth middleware.
+      Add: Route::middleware(['auth'])->group(...) or ->middleware('auth')
+    severity: WARNING
+    languages: [php]
+    pattern: Route::$METHOD($PATH, $HANDLER)
+    pattern-not-inside: Route::middleware(...)
+
+  # --- SQL Injection ---
+
+  - id: php-sql-injection-interpolation
+    message: |
+      SQL query with variable interpolation is vulnerable to SQL injection.
+      Use parameterized queries: DB::select("... WHERE id = ?", [$id])
+    severity: ERROR
+    languages: [php]
+    patterns:
+      - pattern: DB::select("...$INPUT...")
+      - pattern: DB::statement("...$INPUT...")
+      - pattern: $PDO->query("...$INPUT...")
+
+  - id: laravel-raw-sql-concat
+    message: |
+      Raw SQL with concatenation. Use query builder or parameterized queries.
+      Correct: DB::table('users')->where('id', $id)->get()
+    severity: ERROR
+    languages: [php]
+    patterns:
+      - pattern: DB::raw("..." . $INPUT . ...)
+      - pattern: DB::select("..." . $INPUT . ...)
+
+  # --- XSS ---
+
+  - id: php-echo-unescaped
+    message: |
+      Direct output of variable without escaping may lead to XSS.
+      Use htmlspecialchars() or Blade {{ }} (auto-escaped) instead of {!! !!}.
+    severity: WARNING
+    languages: [php]
+    pattern: echo $INPUT;
+    pattern-not: echo htmlspecialchars($INPUT);
+
+  # --- Secrets ---
+
+  - id: php-hardcoded-secret
+    message: |
+      Possible hardcoded secret. Use environment variables.
+      Correct: env('SECRET_KEY') or $_ENV['SECRET_KEY']
+    severity: ERROR
+    languages: [php]
+    pattern-either:
+      - pattern: $VAR = "sk_...";
+      - pattern: $VAR = "pk_...";
+      - pattern: define("SECRET_KEY", "...");
+      - pattern: define("API_KEY", "...");
+
+  # --- Dangerous Functions ---
+
+  - id: php-eval-usage
+    message: |
+      eval() executes arbitrary code. Never use with user input.
+    severity: ERROR
+    languages: [php]
+    pattern: eval(...)
+
+  - id: php-command-injection
+    message: |
+      Shell command with user input is vulnerable to command injection.
+      Use escapeshellarg() and escapeshellcmd() to sanitize.
+    severity: ERROR
+    languages: [php]
+    patterns:
+      - pattern: shell_exec($CMD)
+      - pattern: exec($CMD)
+      - pattern: system($CMD)
+      - pattern: passthru($CMD)
+    pattern-not:
+      - pattern: shell_exec("...")
+
+  # --- File Upload ---
+
+  - id: php-unrestricted-upload
+    message: |
+      File upload without type/size validation.
+      Always validate file type, size, and extension before storing.
+    severity: WARNING
+    languages: [php]
+    pattern: move_uploaded_file($TMP, $DEST)
+
+  # --- Sensitive Logging ---
+
+  - id: php-sensitive-logging
+    message: |
+      Logging potentially sensitive data. Redact sensitive fields.
+    severity: WARNING
+    languages: [php]
+    pattern-either:
+      - pattern: error_log(... . $VAR . ...)
+      - pattern: Log::$METHOD(... . $VAR . ...)
+    metavariable-regex:
+      metavariable: $VAR
+      regex: ".*(password|token|secret|key|credential).*"
+
+  # --- Deserialization ---
+
+  - id: php-unsafe-unserialize
+    message: |
+      unserialize() with user input can lead to object injection attacks.
+      Use json_decode() instead, or validate input before deserializing.
+    severity: ERROR
+    languages: [php]
+    patterns:
+      - pattern: unserialize($INPUT)
+      - pattern-not: unserialize("...")
