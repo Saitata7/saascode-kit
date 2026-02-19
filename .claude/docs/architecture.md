@@ -91,6 +91,26 @@ kit update --full   → File sync + template regeneration from manifest
 
 `--full` only regenerates templates for IDEs already installed (detects by existing config files).
 
+## Public vs Private Files
+
+```
+PUBLIC (committed, helps contributors):
+  CLAUDE.md, .cursorrules, .windsurfrules, .clinerules, CONVENTIONS.md
+  .github/copilot-instructions.md, .continue/rules/, .agent/rules/
+  .claude/skills/, .cursor/rules/, .claude/settings.json
+  .saascode/, .github/workflows/
+
+PRIVATE (auto-gitignored):
+  docs/product/       ← PRD, product-brief, ideas
+  docs/tasks/         ← Sprint plans, task breakdowns
+  .aider.conf.yml     ← Local dev config
+  saascode-kit/       ← npm dependency source
+```
+
+IDE files are public because they contain project info already discoverable from code.
+Strategy docs are private because they contain business ideas and roadmap.
+For full stealth, use `kit cloak`.
+
 ## Recommended Workflow
 
 ```

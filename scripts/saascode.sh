@@ -29,6 +29,18 @@ if [ -n "$SAASCODE_KIT_DIR" ]; then
   [ ! -d "$RULES_DIR" ] && RULES_DIR="$SAASCODE_KIT_DIR/rules"
 fi
 
+# ─── Helpers ───
+
+ensure_gitignored() {
+  local ENTRY="$1"
+  local GITIGNORE="$ROOT/.gitignore"
+  if [ -f "$GITIGNORE" ]; then
+    if ! grep -qF "$ENTRY" "$GITIGNORE" 2>/dev/null; then
+      printf '\n# SaasCode Kit — private\n%s\n' "$ENTRY" >> "$GITIGNORE"
+    fi
+  fi
+}
+
 # ─── Commands ───
 
 cmd_init() {
@@ -646,6 +658,7 @@ cmd_docs_prd() {
   fi
 
   mkdir -p "$PRD_DIR"
+  ensure_gitignored "docs/product/"
 
   if [ -n "$IDEA" ]; then
     cat > "$PRD_FILE" << EOF

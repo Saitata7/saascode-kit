@@ -104,7 +104,27 @@ saascode-kit/
 
 ---
 
-## 🛡️ Anti-Hallucination Checklist
+## Public vs Private Files
+
+**Public (committed, helps contributors):**
+- `CLAUDE.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `CONVENTIONS.md`
+- `.github/copilot-instructions.md`, `.continue/rules/`, `.agent/rules/`
+- `.claude/skills/`, `.cursor/rules/`, `.claude/context/golden-reference.md`
+- `.saascode/`, `.github/workflows/`, `.claude/settings.json`
+
+**Private (gitignored, business strategy):**
+- `docs/product/` — PRD, product-brief.md, ideas
+- `docs/tasks/` — Sprint plans, task breakdowns
+- `.aider.conf.yml` — Local dev config
+- `saascode-kit/` — npm dependency source (already gitignored)
+
+IDE config files contain project info that's already discoverable from code. The industry trend is to keep these public so contributors benefit from AI context. Business strategy docs (`docs/product/`, `docs/tasks/`) contain ideas and roadmap that should remain private.
+
+For full stealth (enterprise/closed-source), use `kit cloak` to hide all kit + AI tool traces.
+
+---
+
+## Anti-Hallucination Checklist
 
 Before claiming something exists or works:
 

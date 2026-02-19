@@ -444,17 +444,15 @@ case "$KIT_RELATIVE" in
     ;;
 esac
 
-# Personal (device-local, each dev uses their own IDE)
-# Team-shared files: .saascode/, .github/workflows/ — NOT gitignored
+# Private (business strategy, not for public repos)
+# IDE files (CLAUDE.md, .cursorrules, etc.) are PUBLIC — they help contributors
 ADDITIONS=(
   ""
-  "# SaasCode Kit — personal/IDE-specific (not shared with team)"
+  "# SaasCode Kit — private (business strategy, local config)"
   "$KIT_RELATIVE/"
-  "CLAUDE.md"
-  ".cursorrules"
-  ".windsurfrules"
-  ".claude/skills/"
-  ".cursor/rules/"
+  "docs/product/"
+  "docs/tasks/"
+  ".aider.conf.yml"
   "docs/diagrams/visual/exported/"
 )
 
@@ -478,15 +476,15 @@ else
 fi
 
 echo ""
-echo "  ${CYAN}Committed (team shares):${NC}"
-echo "    .saascode/             (rules, scripts, checklists)"
-echo "    .github/workflows/     (CI pipeline)"
-echo "    .claude/settings.json  (Claude Code hooks — consistent across team)"
+echo "  ${CYAN}Public (committed, helps contributors):${NC}"
+echo "    CLAUDE.md, .cursorrules, .windsurfrules, .clinerules"
+echo "    .claude/skills/, .cursor/rules/, .claude/settings.json"
+echo "    .saascode/, .github/workflows/"
 echo ""
-echo "  ${CYAN}Gitignored (personal):${NC}"
-echo "    CLAUDE.md          (Claude Code users)"
-echo "    .cursorrules       (Cursor users)"
-echo "    .claude/skills/    (Claude Code users)"
+echo "  ${CYAN}Private (gitignored, business strategy):${NC}"
+echo "    docs/product/      (PRD, product-brief, ideas)"
+echo "    docs/tasks/        (sprint plans, task breakdowns)"
+echo "    .aider.conf.yml    (local dev config)"
 echo "    $KIT_RELATIVE/     (kit source)"
 
 # ─── Summary ───
