@@ -73,7 +73,7 @@ rules:
 2. If complex, create a dedicated script in `scripts/`
 3. Source `lib.sh` and call `load_manifest_vars`
 4. Add to `show_help()` in `bin/cli.sh`
-5. Add to `cmd_update()` in `saascode.sh` if the script should sync
+5. Add to `cmd_update()` in `saascode.sh` if the script should sync (raw copy in normal mode, template processing in `--full` mode)
 
 ## Adding Language Support
 

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI** (`bin/cli.sh`, `scripts/saascode.sh`) — 25+ commands via `npx kit <command>`
 - **Template engine** — `{{placeholder}}` substitution, `{{#if_eq}}` conditionals, `{{#each}}` loops
 - **IDE support** — Claude Code, Cursor, Windsurf, Google Antigravity, GitHub Copilot, Aider, Cline, Continue (8 IDEs)
-- **Claude Code skills** — 18 skills (`/audit`, `/build`, `/test`, `/debug`, `/docs`, `/prd`, `/design`, `/techstack`, `/todo`, `/api`, `/migrate`, `/deploy`, `/changelog`, `/onboard`, `/learn`, `/preflight`, `/review`, `/recipe`)
+- **Claude Code skills** — 19 skills (`/audit`, `/build`, `/test`, `/debug`, `/docs`, `/prd`, `/design`, `/techstack`, `/todo`, `/api`, `/migrate`, `/deploy`, `/changelog`, `/onboard`, `/learn`, `/preflight`, `/review`, `/recipe`, `/skill-create`)
 - **Skill frontmatter** — all skills have YAML frontmatter with name, description, trigger phrases, and negative triggers (Anthropic skills guide compliant)
 - **Design docs** — `/design` generates feature architecture, UI wireframes (ASCII), API contracts
 - **Tech stack ADRs** — `/techstack` generates Architecture Decision Records with comparison matrix
@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stealth mode** — hide/restore all kit traces (`saascode cloak` / `saascode uncloak`)
 - **CI pipelines** — GitHub Actions and GitLab CI templates, language-aware with conditional blocks
 - **Doctor** — 10-check setup diagnostics (`saascode doctor`)
+- **Update --full** — `kit update --full` regenerates all IDE templates from manifest (not just raw file sync)
+- **Workflow guide** — `kit help` shows recommended command order (setup → plan → build → review → ship → maintain)
 - **Verbose mode** — `--verbose` / `-v` flag for debug output
 - **Golden reference** — auto-generated code patterns for `/build` skill
 - **Manifest-driven** — single `saascode-kit.yaml` drives all generation

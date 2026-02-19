@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Write unit and integration tests, run test suite, and generate coverage reports. Use when user says "write tests", "test this", "add tests", "coverage", or "/test". Do NOT use for test planning or QA strategy (manual process) or debugging (use /debug).
+description: Write unit and integration tests with Jest, Vitest, or Mocha, run test suite, and generate coverage reports with tenant isolation verification. Use when user says "write tests", "test this", "add tests", "coverage", or "/test". Do NOT use for test planning or QA strategy (manual process) or debugging (use /debug).
 ---
 
 # Skill: Test Generator & Runner

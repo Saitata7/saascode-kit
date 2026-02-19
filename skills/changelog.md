@@ -1,6 +1,6 @@
 ---
 name: changelog-generator
-description: Generate CHANGELOG from git history with semantic versioning. Use when user says "changelog", "release notes", "what changed", or "/changelog". Do NOT use for commit messages or PR descriptions.
+description: Generate CHANGELOG from git history with semantic versioning, Keep a Changelog format, commit classification, and version suggestion. Use when user says "changelog", "release notes", "what changed", or "/changelog". Do NOT use for commit messages or PR descriptions.
 ---
 
 # Skill: Changelog Generator

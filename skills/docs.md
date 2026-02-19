@@ -1,6 +1,6 @@
 ---
 name: documentation
-description: Organize and generate project documentation including setup guides and feature docs. Use when user says "document", "write docs", "organize docs", or "/docs". Do NOT use for API docs (use /api) or changelogs (use /changelog).
+description: Organize and generate project documentation by scanning codebase, deduplicating files, generating Mermaid diagrams, and creating standard docs structure with architecture, data model, and feature docs. Use when user says "document", "write docs", "organize docs", or "/docs". Do NOT use for API docs (use /api) or changelogs (use /changelog).
 ---
 
 # Skill: Documentation Organizer

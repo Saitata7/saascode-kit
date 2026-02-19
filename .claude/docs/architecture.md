@@ -79,3 +79,27 @@ Exception: `check-file.sh` has a 60-second manifest cache for performance.
 - `detect_test_cmd` — per-language test commands
 - `get_source_extensions` — `.ts,.tsx` / `.py` / `.go` / `.java` / etc.
 - `get_debug_patterns` — console.log / print() / fmt.Println / etc.
+
+## Update Modes
+
+```
+kit update          → Raw file sync (skills, rules, scripts, hooks, checklists, CI)
+kit update --full   → File sync + template regeneration from manifest
+                      (CLAUDE.md, .cursorrules, .windsurfrules, copilot, aider,
+                       antigravity, cline, continue, CI pipelines, skills, cursor rules)
+```
+
+`--full` only regenerates templates for IDEs already installed (detects by existing config files).
+
+## Recommended Workflow
+
+```
+init → claude → prd → design → techstack → todo → build → test → review → audit → predeploy → deploy
+
+1. Setup      kit init → kit claude/cursor/windsurf
+2. Plan       /prd → /design → /techstack → /todo
+3. Build      /build → /recipe → /test
+4. Review     /review → kit audit → kit sweep
+5. Ship       /preflight → kit predeploy → /deploy
+6. Maintain   /debug → /learn → /changelog → kit update --full
+```

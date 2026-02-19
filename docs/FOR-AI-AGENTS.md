@@ -22,7 +22,7 @@
 ## Who This Is For
 
 **You are:**
-- An AI coding assistant (Claude Code, Cursor, Windsurf, Aider, etc.)
+- An AI coding assistant (Claude Code, Cursor, Windsurf, Aider, Cline, Continue, Copilot, Antigravity)
 - Working on a SaaS project with kit installed
 - Looking for detailed guidance beyond auto-loaded rules
 - Wanting to understand best practices deeply
@@ -123,7 +123,7 @@ Before claiming something exists or works:
 - `CLAUDE.md` auto-loads at project root — your primary instructions
 - `.claude/settings.json` defines allowed/denied commands
 - `.claude/docs/` has detailed architecture and conventions
-- 15 skills available via `/command` (e.g., `/build`, `/review`, `/audit`)
+- 19 skills available via `/command` (e.g., `/build`, `/review`, `/audit`, `/prd`, `/design`, `/techstack`, `/todo`)
 - PostToolUse hooks auto-validate every edit via `check-file.sh`
 
 ### Cursor
@@ -234,6 +234,21 @@ Before creating any file, ask yourself:
 
 ---
 
+## 🚀 Recommended Workflow
+
+```
+init → claude → prd → design → techstack → todo → build → test → review → audit → predeploy → deploy
+```
+
+| Phase | Commands | What happens |
+|-------|----------|--------------|
+| **1. Setup** | `kit init` → `kit claude`/`cursor`/`windsurf` | Bootstrap manifest + IDE config |
+| **2. Plan** | `/prd` → `/design` → `/techstack` → `/todo` | Product brief, architecture, ADRs, task breakdown |
+| **3. Build** | `/build` → `/recipe` → `/test` | Feature implementation, scaffolding, tests |
+| **4. Review** | `/review` → `kit audit` → `kit sweep` | Code review, security audit, full sweep |
+| **5. Ship** | `/preflight` → `kit predeploy` → `/deploy` | Pre-deploy gates, deployment guide |
+| **6. Maintain** | `/debug` → `/learn` → `/changelog` → `kit update --full` | Bug fixes, learnings, release notes, sync |
+
 ## 🚀 Quick Reference
 
 | If you want to... | Do this... |
@@ -244,6 +259,7 @@ Before creating any file, ask yourself:
 | Document a feature | Update existing docs in `docs/` |
 | Create a script | Add to `scripts/` (ask first) |
 | Debug something | Use stderr or mktemp |
+| Sync latest kit files | Run `kit update` (raw) or `kit update --full` (with templates) |
 | Anything else | **Ask user first** |
 
 ---
@@ -263,4 +279,4 @@ Creating unwanted files wastes everyone's time:
 ---
 
 **Last Updated:** February 18, 2026
-**Tested With:** Claude Code (Opus 4.6, Sonnet 4.5), Cursor (Auto mode), Windsurf
+**Tested With:** Claude Code (Opus 4.6, Sonnet 4.6), Cursor, Windsurf, Cline, Continue, Copilot, Aider, Antigravity

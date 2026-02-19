@@ -325,8 +325,20 @@ cmd_skills() {
 }
 
 cmd_update() {
-  echo "${BOLD}Updating SaasCode Kit...${NC}"
+  local FULL_MODE=false
+  for arg in "$@"; do
+    case "$arg" in
+      --full|-f) FULL_MODE=true ;;
+    esac
+  done
+
+  if [ "$FULL_MODE" = true ]; then
+    echo "${BOLD}Full update: syncing files + regenerating templates...${NC}"
+  else
+    echo "${BOLD}Updating SaasCode Kit...${NC}"
+  fi
   echo ""
+
   local KIT="$ROOT/saascode-kit"
   local UPDATED=0
 
@@ -345,6 +357,9 @@ cmd_update() {
       echo ""
     fi
   fi
+
+  # ─── Raw file sync (always runs) ───
+  echo "  ${CYAN}[Files]${NC}"
 
   # Skills → .claude/skills/
   if [ -d "$KIT/skills" ]; then
@@ -378,9 +393,7 @@ cmd_update() {
 
       # Skip ai-security.mdc if ai.enabled is not true
       if [ "$RULE_NAME" = "ai-security.mdc" ] && [ "$AI_ENABLED" != "true" ]; then
-        # Remove if previously installed
         [ -f "$ROOT/.cursor/rules/ai-security.mdc" ] && rm "$ROOT/.cursor/rules/ai-security.mdc"
-        echo "  ${YELLOW}—${NC} .cursor/rules/ai-security.mdc (skipped — ai.enabled=false)"
         continue
       fi
 
@@ -390,7 +403,7 @@ cmd_update() {
     echo "  ${GREEN}✓${NC} Cursor rules → .cursor/rules/"
   fi
 
-  # Scripts → .saascode/scripts/ (both .sh and .ts)
+  # Scripts → .saascode/scripts/
   if [ -d "$KIT/scripts" ]; then
     mkdir -p "$ROOT/.saascode/scripts"
     for f in "$KIT"/scripts/*.sh; do
@@ -408,7 +421,7 @@ cmd_update() {
       cp "$f" "$ROOT/.saascode/scripts/$(basename "$f")"
       UPDATED=$((UPDATED + 1))
     done
-    echo "  ${GREEN}✓${NC} Scripts: $(ls "$KIT"/scripts/*.sh "$KIT"/scripts/*.ts "$KIT"/scripts/*.py 2>/dev/null | wc -l | tr -d ' ') files → .saascode/scripts/"
+    echo "  ${GREEN}✓${NC} Scripts → .saascode/scripts/"
   fi
 
   # Checklists → .saascode/checklists/
@@ -418,7 +431,7 @@ cmd_update() {
       cp "$f" "$ROOT/.saascode/checklists/$(basename "$f")"
       UPDATED=$((UPDATED + 1))
     done
-    echo "  ${GREEN}✓${NC} Checklists: $(ls "$KIT"/checklists/*.md 2>/dev/null | wc -l | tr -d ' ') files → .saascode/checklists/"
+    echo "  ${GREEN}✓${NC} Checklists → .saascode/checklists/"
   fi
 
   # Hooks → .git/hooks/
@@ -428,14 +441,7 @@ cmd_update() {
       chmod +x "$ROOT/.git/hooks/$(basename "$f")"
       UPDATED=$((UPDATED + 1))
     done
-    echo "  ${GREEN}✓${NC} Hooks: $(ls "$KIT"/hooks/* 2>/dev/null | wc -l | tr -d ' ') files → .git/hooks/"
-  fi
-
-  # CI → .github/workflows/
-  if [ -d "$ROOT/.github/workflows" ] && [ -f "$KIT/ci/github-action.yml" ]; then
-    cp "$KIT/ci/github-action.yml" "$ROOT/.github/workflows/saascode.yml"
-    UPDATED=$((UPDATED + 1))
-    echo "  ${GREEN}✓${NC} CI: github-action.yml → .github/workflows/saascode.yml"
+    echo "  ${GREEN}✓${NC} Hooks → .git/hooks/"
   fi
 
   # Claude Code hooks → .claude/settings.json
@@ -467,8 +473,160 @@ HOOKS_EOF
   UPDATED=$((UPDATED + 1))
   echo "  ${GREEN}✓${NC} Claude Code hooks → .claude/settings.json"
 
+  # ─── Template regeneration (only with --full) ───
+  if [ "$FULL_MODE" = true ]; then
+    echo ""
+    echo "  ${CYAN}[Templates]${NC}"
+
+    load_manifest_vars 2>/dev/null
+
+    # CLAUDE.md
+    if [ -f "$KIT/templates/CLAUDE.md.template" ]; then
+      if [ -d "$ROOT/.claude" ] || [ -f "$ROOT/CLAUDE.md" ]; then
+        cp "$KIT/templates/CLAUDE.md.template" "$ROOT/CLAUDE.md"
+        replace_placeholders "$ROOT/CLAUDE.md"
+        echo "  ${GREEN}✓${NC} CLAUDE.md (regenerated from manifest)"
+        UPDATED=$((UPDATED + 1))
+      fi
+    fi
+
+    # Golden reference
+    if [ -f "$KIT/templates/golden-reference.md.template" ]; then
+      mkdir -p "$ROOT/.claude/context"
+      cp "$KIT/templates/golden-reference.md.template" "$ROOT/.claude/context/golden-reference.md"
+      replace_placeholders "$ROOT/.claude/context/golden-reference.md"
+      echo "  ${GREEN}✓${NC} .claude/context/golden-reference.md (regenerated)"
+      UPDATED=$((UPDATED + 1))
+    fi
+
+    # .cursorrules
+    if [ -f "$KIT/templates/cursorrules.template" ]; then
+      if [ -d "$ROOT/.cursor" ] || [ -f "$ROOT/.cursorrules" ]; then
+        cp "$KIT/templates/cursorrules.template" "$ROOT/.cursorrules"
+        replace_placeholders "$ROOT/.cursorrules"
+        echo "  ${GREEN}✓${NC} .cursorrules (regenerated from manifest)"
+        UPDATED=$((UPDATED + 1))
+      else
+        echo "  ${YELLOW}—${NC} .cursorrules (skipped — no .cursor/ detected)"
+      fi
+    fi
+
+    # .windsurfrules
+    if [ -f "$KIT/templates/windsurfrules.template" ]; then
+      if [ -d "$ROOT/.windsurf" ] || [ -f "$ROOT/.windsurfrules" ]; then
+        cp "$KIT/templates/windsurfrules.template" "$ROOT/.windsurfrules"
+        replace_placeholders "$ROOT/.windsurfrules"
+        echo "  ${GREEN}✓${NC} .windsurfrules (regenerated from manifest)"
+        UPDATED=$((UPDATED + 1))
+      else
+        echo "  ${YELLOW}—${NC} .windsurfrules (skipped — no .windsurf/ detected)"
+      fi
+    fi
+
+    # GitHub Copilot
+    if [ -f "$KIT/templates/copilot-instructions.md.template" ]; then
+      if [ -f "$ROOT/.github/copilot-instructions.md" ]; then
+        cp "$KIT/templates/copilot-instructions.md.template" "$ROOT/.github/copilot-instructions.md"
+        replace_placeholders "$ROOT/.github/copilot-instructions.md"
+        echo "  ${GREEN}✓${NC} .github/copilot-instructions.md (regenerated)"
+        UPDATED=$((UPDATED + 1))
+      fi
+    fi
+
+    # Aider
+    if [ -f "$KIT/templates/aider-conventions.md.template" ]; then
+      if [ -f "$ROOT/CONVENTIONS.md" ]; then
+        cp "$KIT/templates/aider-conventions.md.template" "$ROOT/CONVENTIONS.md"
+        replace_placeholders "$ROOT/CONVENTIONS.md"
+        echo "  ${GREEN}✓${NC} CONVENTIONS.md (regenerated)"
+        UPDATED=$((UPDATED + 1))
+      fi
+    fi
+
+    # Google Antigravity
+    if [ -f "$KIT/templates/antigravity-rules.md.template" ]; then
+      if [ -d "$ROOT/.agent/rules" ]; then
+        cp "$KIT/templates/antigravity-rules.md.template" "$ROOT/.agent/rules/project-rules.md"
+        replace_placeholders "$ROOT/.agent/rules/project-rules.md"
+        echo "  ${GREEN}✓${NC} .agent/rules/project-rules.md (regenerated)"
+        UPDATED=$((UPDATED + 1))
+      fi
+    fi
+
+    # Cline
+    if [ -f "$KIT/templates/clinerules.md.template" ]; then
+      if [ -f "$ROOT/.clinerules" ]; then
+        cp "$KIT/templates/clinerules.md.template" "$ROOT/.clinerules"
+        replace_placeholders "$ROOT/.clinerules"
+        process_conditionals "$ROOT/.clinerules"
+        echo "  ${GREEN}✓${NC} .clinerules (regenerated from manifest)"
+        UPDATED=$((UPDATED + 1))
+      fi
+    fi
+
+    # Continue
+    if [ -f "$KIT/templates/continue-rules.md.template" ]; then
+      if [ -d "$ROOT/.continue/rules" ]; then
+        cp "$KIT/templates/continue-rules.md.template" "$ROOT/.continue/rules/project-rules.md"
+        replace_placeholders "$ROOT/.continue/rules/project-rules.md"
+        process_conditionals "$ROOT/.continue/rules/project-rules.md"
+        echo "  ${GREEN}✓${NC} .continue/rules/project-rules.md (regenerated)"
+        UPDATED=$((UPDATED + 1))
+      fi
+    fi
+
+    # CI — GitHub Actions (template-processed)
+    if [ -d "$ROOT/.github/workflows" ] && [ -f "$KIT/ci/github-action.yml" ]; then
+      cp "$KIT/ci/github-action.yml" "$ROOT/.github/workflows/saascode.yml"
+      process_conditionals "$ROOT/.github/workflows/saascode.yml"
+      replace_placeholders "$ROOT/.github/workflows/saascode.yml"
+      echo "  ${GREEN}✓${NC} .github/workflows/saascode.yml (regenerated with conditionals)"
+      UPDATED=$((UPDATED + 1))
+    fi
+
+    # CI — GitLab CI (template-processed)
+    if [ -f "$ROOT/.gitlab-ci.yml" ] && [ -f "$KIT/ci/gitlab-ci.yml.template" ]; then
+      cp "$KIT/ci/gitlab-ci.yml.template" "$ROOT/.gitlab-ci.yml"
+      process_conditionals "$ROOT/.gitlab-ci.yml"
+      replace_placeholders "$ROOT/.gitlab-ci.yml"
+      echo "  ${GREEN}✓${NC} .gitlab-ci.yml (regenerated with conditionals)"
+      UPDATED=$((UPDATED + 1))
+    fi
+
+    # Re-process skills with manifest placeholders
+    if [ -d "$ROOT/.claude/skills" ]; then
+      for f in "$ROOT"/.claude/skills/*.md; do
+        replace_placeholders "$f" 2>/dev/null
+      done
+      echo "  ${GREEN}✓${NC} Skills: placeholders resolved from manifest"
+    fi
+
+    # Re-process cursor rules with manifest placeholders
+    if [ -d "$ROOT/.cursor/rules" ]; then
+      for f in "$ROOT"/.cursor/rules/*.mdc; do
+        replace_placeholders "$f" 2>/dev/null
+      done
+      echo "  ${GREEN}✓${NC} Cursor rules: placeholders resolved from manifest"
+    fi
+  fi
+
+  # ─── CI raw copy (only in non-full mode — full mode handles CI with template processing above) ───
+  if [ "$FULL_MODE" = false ]; then
+    if [ -d "$ROOT/.github/workflows" ] && [ -f "$KIT/ci/github-action.yml" ]; then
+      cp "$KIT/ci/github-action.yml" "$ROOT/.github/workflows/saascode.yml"
+      UPDATED=$((UPDATED + 1))
+      echo "  ${GREEN}✓${NC} CI → .github/workflows/saascode.yml"
+    fi
+  fi
+
   echo ""
   echo "  ${GREEN}${BOLD}Updated $UPDATED files.${NC}"
+
+  if [ "$FULL_MODE" = false ]; then
+    echo ""
+    echo "  ${DIM}Tip: Run 'kit update --full' to also regenerate CLAUDE.md, .cursorrules,"
+    echo "  .windsurfrules, and other IDE files from your manifest.${NC}"
+  fi
 }
 
 cmd_docs_prd() {
@@ -1331,7 +1489,7 @@ cmd_help() {
   echo ""
   echo "  ${CYAN}Setup:${NC}"
   printf "  %-28s %s\n" "kitinit" "Run setup.sh to bootstrap kit in project"
-  printf "  %-28s %s\n" "kitupdate" "Sync kit source → installed locations"
+  printf "  %-28s %s\n" "update [--full]" "Sync kit files (--full: regenerate templates)"
   printf "  %-28s %s\n" "kitverify" "Verify development environment setup"
   printf "  %-28s %s\n" "kitinit --dry-run" "Preview what would be generated"
   printf "  %-28s %s\n" "kitdoctor" "Diagnose common setup issues"
@@ -1417,6 +1575,7 @@ cmd_help() {
   printf "  %-28s %s\n" "/learn [finding]" "Capture bug patterns for self-improvement"
   printf "  %-28s %s\n" "/preflight" "Pre-deploy checklist"
   printf "  %-28s %s\n" "/review" "PR review"
+  printf "  %-28s %s\n" "/skill-create [name]" "Create custom skills with proper structure"
   echo ""
   echo "  ${CYAN}Automatic (git hooks):${NC}"
   printf "  %-28s %s\n" "pre-commit" "Secrets, .env, debug statements, large files"
@@ -1424,6 +1583,17 @@ cmd_help() {
   echo ""
   echo "  ${CYAN}CI/CD (GitHub Actions):${NC}"
   printf "  %-28s %s\n" "On PR" "TypeScript, build, endpoint parity, secrets"
+  echo ""
+  echo "${BOLD}WORKFLOW${NC}"
+  echo ""
+  echo "  ${DIM}init → claude → prd → design → techstack → todo → build → test → review → audit → predeploy → deploy${NC}"
+  echo ""
+  echo "  ${CYAN}1. Setup${NC}      kit init → kit claude/cursor/windsurf"
+  echo "  ${CYAN}2. Plan${NC}       /prd → /design → /techstack → /todo"
+  echo "  ${CYAN}3. Build${NC}      /build → /recipe → /test"
+  echo "  ${CYAN}4. Review${NC}     /review → kit audit → kit sweep"
+  echo "  ${CYAN}5. Ship${NC}       /preflight → kit predeploy → /deploy"
+  echo "  ${CYAN}6. Maintain${NC}   /debug → /learn → /changelog → kit update --full"
   echo ""
   echo "${DIM}Also available as: alias kit='.saascode/scripts/saascode.sh'${NC}"
   echo ""

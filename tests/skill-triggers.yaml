@@ -1,0 +1,302 @@
+# Skill Trigger Test Suite
+# Reference: "The Complete Guide to Building Skills for Claude" (Anthropic, Feb 2026)
+# Goal: Each skill should trigger on 90% of relevant queries
+#
+# Format per skill:
+#   should_trigger: Queries that MUST load this skill (aim for auto-trigger)
+#   should_not_trigger: Queries that must NOT load this skill (avoid over-triggering)
+#
+# Testing method:
+#   1. Manual: Ask Claude each query, check which skill loads
+#   2. Scripted: Use Claude Code CLI with --print flag to verify skill loading
+#   3. API: Use Skills API /v1/skills with container.skills parameter
+
+skills:
+
+  - name: api-reference
+    trigger: /api
+    should_trigger:
+      - "document the API"
+      - "generate API docs"
+      - "create API reference"
+      - "export Postman collection"
+      - "what endpoints do we have"
+      - "generate API documentation for the users module"
+      - "I need a Postman collection for testing"
+    should_not_trigger:
+      - "design a new API endpoint"          # → design
+      - "add a POST endpoint to users"        # → recipe or build
+      - "review the API code"                 # → review
+
+  - name: security-audit
+    trigger: /audit
+    should_trigger:
+      - "run a security audit"
+      - "check for vulnerabilities"
+      - "scan the codebase for security issues"
+      - "audit the users module"
+      - "are there any security holes"
+      - "check for hardcoded secrets"
+      - "run security scan on the whole project"
+    should_not_trigger:
+      - "review my PR"                        # → review
+      - "check if we're ready to deploy"      # → preflight
+      - "fix the auth bug"                    # → debug
+
+  - name: build-feature
+    trigger: /build
+    should_trigger:
+      - "build a user management feature"
+      - "implement notifications module"
+      - "add CRUD for invoices"
+      - "create the payments feature end to end"
+      - "build a new settings page with backend"
+      - "implement the contacts module"
+      - "add a complete billing feature"
+    should_not_trigger:
+      - "fix the login bug"                   # → debug
+      - "review my code changes"              # → review
+      - "write tests for users"               # → test
+      - "scaffold a CRUD endpoint"            # → recipe
+
+  - name: changelog-generator
+    trigger: /changelog
+    should_trigger:
+      - "generate a changelog"
+      - "what changed since last release"
+      - "create release notes"
+      - "write changelog for v2.0"
+      - "update the CHANGELOG.md"
+      - "summarize recent changes for release"
+      - "what's new since the last tag"
+    should_not_trigger:
+      - "write a commit message"              # → general
+      - "create a PR description"             # → general
+      - "document the project"                # → docs
+
+  - name: debug-issue
+    trigger: /debug
+    should_trigger:
+      - "debug this error"
+      - "fix this bug"
+      - "getting a 500 error"
+      - "the page is blank"
+      - "why is this not working"
+      - "login returns 401"
+      - "the API is slow"
+      - "build is failing with TS errors"
+      - "CORS error in the browser"
+    should_not_trigger:
+      - "build a new feature"                 # → build
+      - "review my changes"                   # → review
+      - "run the security audit"              # → audit
+
+  - name: deployment-guide
+    trigger: /deploy
+    should_trigger:
+      - "deploy to production"
+      - "how do I release this"
+      - "push to staging"
+      - "what's the deploy process"
+      - "rollback the last deployment"
+      - "check deployment status"
+      - "release the new version"
+    should_not_trigger:
+      - "run preflight checks"                # → preflight
+      - "set up CI/CD pipeline"               # → general / manifest
+      - "fix the deploy script"               # → debug
+
+  - name: design-document
+    trigger: /design
+    should_trigger:
+      - "create a design doc for notifications"
+      - "design the system architecture"
+      - "wireframe the dashboard page"
+      - "design the API contract for payments"
+      - "architecture document for the project"
+      - "UI design for the settings page"
+      - "draw the component tree"
+    should_not_trigger:
+      - "write the PRD"                       # → prd
+      - "break down the tasks"                # → todo
+      - "which database should we use"        # → techstack
+
+  - name: documentation
+    trigger: /docs
+    should_trigger:
+      - "organize the project docs"
+      - "generate documentation"
+      - "write docs for this project"
+      - "create a docs structure"
+      - "document the codebase"
+      - "clean up the markdown files"
+      - "generate architecture docs from code"
+    should_not_trigger:
+      - "generate API reference"              # → api
+      - "create a changelog"                  # → changelog
+      - "write a PRD"                         # → prd
+
+  - name: learn-pattern
+    trigger: /learn
+    should_trigger:
+      - "learn from this bug"
+      - "remember this pattern"
+      - "add this to learnings"
+      - "capture this as a lesson"
+      - "review recent bugs for patterns"
+      - "sync the learned rules"
+      - "what have we learned from past bugs"
+    should_not_trigger:
+      - "fix this bug"                        # → debug
+      - "audit the code"                      # → audit
+      - "onboard a new developer"             # → onboard
+
+  - name: database-migration
+    trigger: /migrate
+    should_trigger:
+      - "add a column to the users table"
+      - "create a database migration"
+      - "migrate the schema"
+      - "check migration status"
+      - "rollback the last migration"
+      - "rename the email column safely"
+      - "add an index to the orders table"
+    should_not_trigger:
+      - "migrate from Express to NestJS"      # → general
+      - "deploy the new version"              # → deploy
+      - "build the users feature"             # → build
+
+  - name: developer-onboarding
+    trigger: /onboard
+    should_trigger:
+      - "create an onboarding guide"
+      - "new developer setup"
+      - "how to set up the project"
+      - "generate setup instructions"
+      - "verify my dev environment"
+      - "onboard a new team member"
+      - "write a getting started guide"
+    should_not_trigger:
+      - "build user onboarding flow"          # → build (end-user onboarding)
+      - "document the API"                    # → api
+      - "deploy the app"                      # → deploy
+
+  - name: product-brief
+    trigger: /prd
+    should_trigger:
+      - "write a PRD"
+      - "create a product brief"
+      - "product spec for a marketplace"
+      - "plan the product"
+      - "define entities and relationships"
+      - "generate a product brief from the codebase"
+      - "PRD for an AI-powered legal platform"
+    should_not_trigger:
+      - "design the system architecture"      # → design
+      - "break down into tasks"               # → todo
+      - "choose a tech stack"                 # → techstack
+
+  - name: preflight-check
+    trigger: /preflight
+    should_trigger:
+      - "run preflight checks"
+      - "are we ready to deploy"
+      - "pre-deploy checklist"
+      - "check all deployment gates"
+      - "verify release readiness"
+      - "run the pre-deploy gates"
+      - "can we ship this"
+    should_not_trigger:
+      - "deploy to production"                # → deploy
+      - "run security audit"                  # → audit
+      - "review the code"                     # → review
+
+  - name: code-recipe
+    trigger: /recipe
+    should_trigger:
+      - "scaffold a CRUD module"
+      - "generate boilerplate for a new endpoint"
+      - "recipe for a form component"
+      - "create a modal template"
+      - "scaffold a settings page"
+      - "generate a new page with data fetching"
+      - "give me the recipe for adding an endpoint"
+    should_not_trigger:
+      - "build the full notifications feature"  # → build
+      - "design the API"                        # → design
+      - "write tests"                           # → test
+
+  - name: code-review
+    trigger: /review
+    should_trigger:
+      - "review my PR"
+      - "code review these changes"
+      - "check my code"
+      - "review the staged changes"
+      - "PR review for #42"
+      - "review this file for security issues"
+      - "are these changes safe to merge"
+    should_not_trigger:
+      - "run a full security audit"           # → audit
+      - "check if we're ready to deploy"      # → preflight
+      - "fix this bug"                        # → debug
+
+  - name: tech-stack-decision
+    trigger: /techstack
+    should_trigger:
+      - "which database should we use"
+      - "compare Redis vs Memcached"
+      - "tech stack overview"
+      - "write an ADR for choosing a queue"
+      - "evaluate authentication providers"
+      - "should we use PostgreSQL or MongoDB"
+      - "tech stack audit"
+    should_not_trigger:
+      - "design the system architecture"      # → design
+      - "write the PRD"                       # → prd
+      - "document the project"                # → docs
+
+  - name: test-writer
+    trigger: /test
+    should_trigger:
+      - "write tests for the users service"
+      - "add unit tests"
+      - "test coverage report"
+      - "run all tests"
+      - "write integration tests for the API"
+      - "add tests for this component"
+      - "check test coverage"
+    should_not_trigger:
+      - "build the testing feature"           # → build
+      - "debug the failing test"              # → debug
+      - "review the test code"                # → review
+
+  - name: task-planner
+    trigger: /todo
+    should_trigger:
+      - "break this down into tasks"
+      - "create a task list"
+      - "plan the sprint"
+      - "todo list for notifications feature"
+      - "break the milestone into tasks"
+      - "estimate the work"
+      - "create implementation tasks with dependencies"
+    should_not_trigger:
+      - "write the PRD"                       # → prd
+      - "design the architecture"             # → design
+      - "build the feature"                   # → build
+
+  - name: skill-creator
+    trigger: /skill-create
+    should_trigger:
+      - "create a new skill"
+      - "build a custom skill"
+      - "make a skill for code formatting"
+      - "I want a new slash command"
+      - "add a workflow skill"
+      - "help me create a skill"
+      - "generate a new skill template"
+    should_not_trigger:
+      - "build a feature"                     # → build
+      - "write docs"                          # → docs
+      - "create a recipe"                     # → recipe
