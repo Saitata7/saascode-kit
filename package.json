@@ -1,41 +1,63 @@
 {
   "name": "saascode-kit",
-  "version": "0.1.0",
-  "description": "SaaS development toolkit — AI-powered code review, security rules, and IDE config for SaaS projects",
+  "version": "2.0.0-alpha.1",
+  "description": "SaaS development guardrails. Free. Offline. Deterministic.",
+  "type": "module",
   "bin": {
-    "kit": "./bin/cli.sh"
+    "saascode": "./dist/cli/index.js",
+    "saascode-check": "./dist/cli/check-standalone.js"
   },
   "scripts": {
-    "test": "bash tests/run-tests.sh",
-    "test:quick": "bash tests/run-tests.sh --quick"
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:legacy": "bash tests/run-tests.sh",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "@inquirer/prompts": "^7.0.0",
+    "chalk": "^5.3.0",
+    "ts-morph": "^24.0.0",
+    "yaml": "^2.5.0",
+    "glob": "^11.0.0",
+    "ora": "^8.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.16.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^22.0.0"
   },
   "files": [
-    "bin/",
-    "scripts/",
-    "skills/",
-    "rules/",
-    "cursor-rules/",
-    "templates/",
-    "checklists/",
-    "hooks/",
-    "ci/",
-    "setup.sh",
-    "manifest.example.yaml",
+    "dist/",
+    "scripts/ast-review.ts",
+    "scripts/ast-review-python.py",
+    "scripts/ast-review-go.sh",
+    "scripts/ast-review-java.sh",
+    "scripts/ast-review-ruby.sh",
+    "scripts/ast-review.sh",
+    "scripts/endpoint-parity.sh",
+    "scripts/check-file.sh",
+    "scripts/review-formatter.sh",
+    "scripts/review-checks.sh",
+    "scripts/recommend.sh",
+    "scripts/lib.sh",
+    "templates/semgrep/",
+    "templates/eslint/",
+    "templates/prettier/",
     "README.md",
-    "SETUP.md",
-    "CHANGELOG.md",
     "LICENSE"
   ],
   "keywords": [
     "saas",
     "code-review",
-    "ai-review",
+    "endpoint-parity",
     "security",
-    "claude",
-    "cursor",
-    "windsurf",
+    "guardrails",
     "devtools",
-    "multi-tenant"
+    "multi-tenant",
+    "ast-review"
   ],
   "author": "Sai Kumar Tata <https://github.com/Saitata7>",
   "license": "MIT",

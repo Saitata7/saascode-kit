@@ -1,15 +1,23 @@
 # Coding Conventions
 
-## Shell Scripts
+## TypeScript (src/)
+
+- **ESM only** — `"type": "module"`, imports use `.js` extensions
+- **Strict mode** — `"strict": true` in tsconfig.json
+- **No default exports** — use named exports everywhere
+- **Types** — defined in `src/types/`, imported as `type` imports
+- **Error handling** — throw typed errors, catch with `(error as Error).message`
+
+## Shell Scripts (scripts/)
 
 - **Shebang**: `#!/usr/bin/env bash` for scripts, `#!/bin/sh` for hooks
 - **Variables**: UPPER_SNAKE for constants, lower_snake for locals
 - **Quoting**: Always double-quote variables: `"$VAR"`, `"$1"`
-- **Exit codes**: 0 = success, 1 = error, 2 = critical findings (review scripts)
-- **Colors**: Use variables from lib.sh or define locally: `RED='\033[0;31m'`, `NC='\033[0m'`
-- **Functions**: `snake_case`, prefix with `cmd_` for CLI commands in saascode.sh
+- **Exit codes**: 0 = success, 1 = error/findings, 2 = critical
+- **Colors**: Use variables from lib.sh: `$RED`, `$GREEN`, `$YELLOW`, `$CYAN`, `$BOLD`, `$NC`
+- **Functions**: `snake_case`
 
-## BSD Compatibility (Critical)
+## BSD Compatibility (Critical for shell scripts)
 
 ```bash
 # CORRECT — works on macOS + Linux
@@ -25,37 +33,7 @@ awk '{print $1}' file
 awk -i inplace '{print $1}' file
 ```
 
-## Skill Files (.md)
-
-```markdown
-# Skill: [Name]
-
-> Trigger: /command [args]
-> Purpose: One-line description
-
-## Step 1: [Action]
-...
-
-## Output Rules
-- Rule 1
-- Rule 2
-```
-
-## Cursor Rule Files (.mdc)
-
-```markdown
----
-description: When and why this rule activates
-globs:
-  - "**/path/**/*.ext"
----
-
-# Rule content in markdown
-- CORRECT: `code example`
-- WRONG: `code example`
-```
-
-## Semgrep Rules (.yaml)
+## Semgrep Rules (templates/semgrep/*.yaml)
 
 ```yaml
 rules:
@@ -67,19 +45,18 @@ rules:
       ...semgrep pattern...
 ```
 
-## Adding a New CLI Command
+## Adding a Framework Scanner
 
-1. Add the command case to `scripts/saascode.sh` in the `case` block
-2. If complex, create a dedicated script in `scripts/`
-3. Source `lib.sh` and call `load_manifest_vars`
-4. Add to `show_help()` in `bin/cli.sh`
-5. Add to `cmd_update()` in `saascode.sh` if the script should sync (raw copy in normal mode, template processing in `--full` mode)
+1. Create `src/analyzers/endpoint-checker/frameworks/<name>.ts`
+2. Export `async function scan<Name>(backendPath, root, apiPrefix?): Promise<Endpoint[]>`
+3. Register in `src/analyzers/endpoint-checker/backend-scanner.ts` SCANNERS map
+4. Add to auto-detection in `detectBackendType()` if needed
+5. Add unit test in `tests/unit/`
 
-## Adding Language Support
+## Adding Language Support for Review
 
-1. Add detection logic to `lib.sh` detection helpers
-2. Add file extensions to `get_source_extensions`
-3. Add debug/test/SQL patterns to respective functions
-4. Update `check-file.sh` for language-specific checks
-5. Optionally create `ast-review-<lang>.sh` or `.py`
-6. Update `ast-review.sh` dispatcher
+1. Create `scripts/ast-review-<lang>.sh` or `.py`
+2. Update `scripts/ast-review.sh` dispatcher
+3. Add detection logic in `src/utils/detect.ts`
+4. Add source extensions to `getSourceExtensions()`
+5. Add excluded dirs to `getExcludedDirs()`

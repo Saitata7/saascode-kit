@@ -1,99 +1,125 @@
-# Kit — Project Context
+# saascode-kit v2 — Project Context
 
-> This is the development context for working ON the kit itself, not a user project.
+> Development context for working ON the kit itself, not a user project.
 
 ## What This Is
 
-Kit is a manifest-driven development toolkit that gives AI agents (Claude Code, Cursor, Windsurf) project-specific intelligence. One `manifest.yaml` generates context files, skills, rules, hooks, review engines, and CI pipelines.
+saascode-kit is a SaaS development guardrails CLI with 5 pillars: `init`, `check`, `review`, `add`, `recommend`. It's a hybrid TypeScript + Shell project that provides deterministic, offline, free code analysis for SaaS projects.
 
-**Primary users:** AI agents. **Secondary users:** Human developers via CLI.
+**Hero feature:** Endpoint parity checker (`saascode check`) — the only tool that finds mismatches between frontend API calls and backend routes. Zero competition globally.
+
+**Primary users:** Developers building SaaS applications. **No AI required.**
 
 ## Tech Stack
 
-- **Core:** Bash/Zsh (zero dependencies for CLI)
-- **AST Review:** TypeScript (ts-morph), Python (stdlib ast), Java (bash+grep+awk)
-- **AI Review:** Shell + curl (7 LLM providers)
-- **Static Analysis:** Semgrep YAML rules
-- **Distribution:** npm (npx kit)
-- **Template Engine:** Custom awk/sed (BSD-compatible, no Python/Node dependency for init)
+- **CLI:** TypeScript (Commander.js) — `src/cli/index.ts`
+- **Parity Checker:** TypeScript (ts-morph) — `src/analyzers/endpoint-checker/`
+- **AST Review:** TypeScript (ts-morph), Python (stdlib ast), Shell (bash+grep+awk)
+- **Generators:** TypeScript — `src/generators/`
+- **Recommend:** Shell — `scripts/recommend.sh`
+- **Static Analysis:** Semgrep YAML rules — `templates/semgrep/`
+- **Distribution:** npm (npx saascode)
+- **Testing:** Vitest
 
 ## Project Structure
 
 ```
-bin/cli.sh                    # npx entry point
-scripts/saascode.sh           # Command dispatcher (20+ commands)
-scripts/lib.sh                # Shared library (manifest parsing, detection, templates)
-scripts/*.sh                  # Individual command scripts
-setup.sh                      # Installer (reads manifest, generates everything)
-templates/                    # IDE context templates (CLAUDE.md, cursorrules, windsurfrules)
-skills/                       # Claude Code skills (15 .md files)
-cursor-rules/                 # Cursor rules (8 .mdc files)
-rules/                        # Semgrep rule sets (5 .yaml files)
-hooks/                        # Git hooks (pre-commit, pre-push)
-checklists/                   # Quality checklists (3 .md files)
-ci/                           # CI pipeline templates
-tests/                        # 16 fixture projects for testing
-docs/                         # Documentation
-docs/product/                 # Internal strategy docs (gitignored)
+src/
+  cli/
+    index.ts                    # Commander.js entry (5 commands)
+    check-standalone.ts         # Standalone parity checker entry
+  commands/
+    init.ts                     # Interactive wizard (@inquirer/prompts)
+    check.ts                    # Parity checker command
+    review.ts                   # Review command (wraps shell scripts)
+    add.ts                      # Tool orchestrator
+    recommend.ts                # Recommend command (wraps shell)
+  analyzers/
+    endpoint-checker/
+      index.ts                  # Main orchestrator
+      types.ts                  # Endpoint, ParityResult types
+      frontend-scanner.ts       # Extract API calls (fetch, axios, SWR)
+      backend-scanner.ts        # Dispatch to framework scanners
+      comparator.ts             # Compare + find mismatches
+      normalizer.ts             # Path normalization (:param, [id], {id})
+      reporter.ts               # chalk output formatting
+      frameworks/               # 12 framework scanners
+  generators/
+    eslint.ts                   # ESLint/Ruff/golangci config generation
+    prettier.ts                 # Prettier config generation
+    semgrep.ts                  # Semgrep SaaS rules
+    husky.ts                    # Husky + lint-staged setup
+  utils/
+    manifest.ts                 # YAML read/write
+    output.ts                   # chalk formatting, tables
+    detect.ts                   # Auto-detect project structure
+    logger.ts                   # JSONL logging
+    sarif.ts                    # SARIF 2.1.0 output
+    paths.ts                    # Cross-platform path utilities
+  types/
+    manifest.ts                 # Manifest YAML schema
+    findings.ts                 # Finding/report types
+scripts/
+  ast-review.sh                 # Review dispatcher
+  ast-review.ts                 # TypeScript reviewer (ts-morph)
+  ast-review-python.py          # Python reviewer (ast)
+  ast-review-go.sh              # Go reviewer
+  ast-review-java.sh            # Java reviewer
+  ast-review-ruby.sh            # Ruby reviewer
+  recommend.sh                  # Health scoring script
+  lib.sh                        # Shared shell library
+  endpoint-parity.sh            # Shell-based parity fallback
+  check-file.sh                 # Single-file validator
+  review-formatter.sh           # SARIF/JSON formatting
+templates/
+  semgrep/                      # 10 Semgrep SaaS security rule sets
+tests/
+  unit/                         # Vitest unit tests
+  projects/                     # 16 fixture projects
+archive/v1/                     # Archived v1 features (skills, templates, etc.)
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `saascode init` | Interactive setup wizard |
+| `saascode check` | Endpoint parity checker (hero) |
+| `saascode review [--saas]` | Deterministic AST code review |
+| `saascode add <tool>` | Configure eslint/prettier/husky/semgrep |
+| `saascode recommend` | Project health score (0-100) |
+
+## Development Commands
+
+```bash
+npm run build          # Compile TypeScript
+npm run dev            # Run CLI in development mode
+npm run typecheck      # Type check without emitting
+npm test               # Run Vitest unit tests
+npm run test:legacy    # Run legacy shell test suite
 ```
 
 ## Key Conventions
 
-- **All scripts source `scripts/lib.sh`** for manifest parsing, detection helpers, and template engine
-- **POSIX-compatible hooks** — `hooks/pre-commit` and `hooks/pre-push` use `/bin/sh`, not bash
-- **Multi-language support** — 8 languages (TS, JS, Python, Ruby, Go, Java, Rust, PHP) via detection helpers in lib.sh
-- **Template placeholders** — `{{key.subkey}}` syntax, processed by `replace_placeholders` and `process_conditionals`
-- **Conditional blocks** — `{{#if field}}`, `{{#if_eq field "value"}}`, `{{#each array}}`
-- **JSONL logging** — `log_issue()` writes to `.saascode/logs/issues-YYYY-MM-DD.jsonl`
-- **BSD compatibility** — sed/awk must work on macOS without GNU coreutils
+- **TypeScript source** lives in `src/`, compiled to `dist/`
+- **Shell scripts** in `scripts/` remain for review system (already works across 5 languages)
+- **Tests** use Vitest, fixture projects in `tests/projects/`
+- **ESM-only** — `"type": "module"` in package.json
+- **Node16 module resolution** — imports use `.js` extensions
 
 ## Golden Rules
 
 | # | May do | Must NOT do |
 |---|--------|-------------|
-| 1 | Edit scripts, templates, skills, rules | Break BSD/POSIX compatibility in hooks |
-| 2 | Add new CLI commands via saascode.sh | Add Python/Node runtime dependencies to core CLI |
-| 3 | Add language detection in lib.sh | Hardcode NestJS-specific patterns in generic scripts |
-| 4 | Create new Semgrep rules in rules/ | Use GNU-only sed/awk flags (use POSIX-compatible) |
-| 5 | Enhance check-file.sh categories | Make PostToolUse hooks slower than 1 second |
-| 6 | Add new skill .md files | Change the skill format (Trigger, Purpose, Steps, Output, Rules) |
-| 7 | Add new cursor rule .mdc files | Remove the globs/description frontmatter from .mdc files |
-
-## File Editing Rules
-
-- **Templates** (`templates/*.template`): Use `{{placeholder}}` syntax from manifest keys
-- **Skills** (`skills/*.md`): Follow format: `# Skill: Name`, `> Trigger:`, `> Purpose:`, then `## Step N:`
-- **Cursor rules** (`cursor-rules/*.mdc`): YAML frontmatter with `description` + `globs`, then markdown
-- **Semgrep rules** (`rules/*.yaml`): Standard Semgrep format with `rules:` array
-- **Hooks** (`hooks/*`): Must be POSIX `/bin/sh` compatible, include inline manifest reader (no sourcing lib.sh)
-- **Scripts** (`scripts/*.sh`): Source lib.sh at top, use `load_manifest_vars` for manifest access
-
-## Commands for Development
-
-```bash
-# Validate kit structure (no unwanted files)
-bash scripts/validate-structure.sh
-
-# Test against fixture projects
-bash tests/run-tests.sh
-
-# Check a script for syntax errors
-bash -n scripts/some-script.sh
-```
-
-## Competitive Positioning
-
-Kit = **Superpower Prompts** (like Obra, but manifest-driven + multi-IDE) + **Code Review** (like CodeRabbit, but free + before-commit) + **Intent Verification** (like kluster.ai, but free + hook-based) + **Prevention Gates** (like Husky+Semgrep)
-
-## Detailed Guidelines
-
-- [Architecture](.claude/docs/architecture.md) — template engine, prevention stack, review pipeline, script dependencies
-- [Conventions](.claude/docs/conventions.md) — shell style, BSD compat, skill/rule formats, adding commands/languages
+| 1 | Add framework scanners in `src/analyzers/endpoint-checker/frameworks/` | Break existing shell reviewers |
+| 2 | Enhance TypeScript types and utilities | Add AI/LLM dependencies |
+| 3 | Add Semgrep rules in `templates/semgrep/` | Use GNU-only sed/awk in shell scripts |
+| 4 | Add unit tests in `tests/unit/` | Modify fixture projects without good reason |
+| 5 | Enhance generators for new frameworks | Make recommend.sh slower than 5 seconds |
 
 ## Anti-Patterns
 
-- Do NOT add `npm install` or `pip install` to any core script — zero runtime dependencies
-- Do NOT use `sed -i ''` (macOS) or `sed -i` (GNU) — use `sed -i.bak` then `rm *.bak` for BSD compatibility
-- Do NOT add interactive prompts (`read -p`) to scripts that run in hooks — they hang
-- Do NOT create files in project root during development — use appropriate subdirectories
-- Do NOT commit `docs/product/` — it contains internal strategy docs (gitignored)
+- Do NOT add AI/LLM dependencies — the tool must work offline with zero tokens
+- Do NOT use CommonJS (`require()`) in TypeScript source — ESM only
+- Do NOT break BSD compatibility in shell scripts
+- Do NOT commit `docs/product/` — internal strategy docs (gitignored)

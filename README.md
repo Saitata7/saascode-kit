@@ -1,226 +1,112 @@
 <p align="center">
-  <h1 align="center">Kit</h1>
-  <p align="center">Development toolkit for AI agents building SaaS applications</p>
-  <p align="center"><strong>AI-First Design</strong> • One manifest, multiple outputs</p>
+  <h1 align="center">saascode-kit</h1>
+  <p align="center">SaaS development guardrails in one command. Free. Offline. Works on private repos.</p>
 </p>
-
-> **🤖 For AI Agents (Claude Code, Cursor, Windsurf):** This toolkit is designed FOR YOU.
->
-> **Quick Start:**
-> 1. **Claude Code** → Read `CLAUDE.md` (auto-loaded after `saascode init`)
-> 2. **Cursor** → Read `.cursorrules` (auto-loaded from repo)
-> 3. **Windsurf** → Read `.windsurfrules` (auto-loaded from repo)
-> 4. **Reference** → See [docs/FOR-AI-AGENTS.md](docs/FOR-AI-AGENTS.md) for detailed guide
 
 <p align="center">
   <a href="https://github.com/Saitata7/saascode-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Saitata7/saascode-kit?style=flat-square" alt="License"></a>
   <a href="https://github.com/Saitata7/saascode-kit/stargazers"><img src="https://img.shields.io/github/stars/Saitata7/saascode-kit?style=flat-square" alt="Stars"></a>
-  <a href="https://github.com/Saitata7/saascode-kit/network/members"><img src="https://img.shields.io/github/forks/Saitata7/saascode-kit?style=flat-square" alt="Forks"></a>
-  <a href="https://github.com/Saitata7/saascode-kit/issues"><img src="https://img.shields.io/github/issues/Saitata7/saascode-kit?style=flat-square" alt="Issues"></a>
-  <a href="https://github.com/Saitata7/saascode-kit/commits/main"><img src="https://img.shields.io/github/last-commit/Saitata7/saascode-kit?style=flat-square" alt="Last Commit"></a>
   <a href="https://www.npmjs.com/package/saascode-kit"><img src="https://img.shields.io/npm/v/saascode-kit?style=flat-square" alt="npm"></a>
 </p>
 
-<p align="center">
-  <a href="#what-is-saascode-kit">What Is It</a> &middot;
-  <a href="#key-features">Key Features</a> &middot;
-  <a href="#who-is-this-for">Who Is This For</a> &middot;
-  <a href="#quick-start">Quick Start</a> &middot;
-  <a href="GOALS.md">Goals & Vision</a> &middot;
-  <a href="SETUP.md">Full Setup Guide</a>
-</p>
-
----
-
-## 🤖 For AI Agents (Primary Users)
-
-**You are an AI agent (Claude Code, Cursor, Windsurf, etc.). This toolkit is designed FOR YOU.**
-
-### Your Quick Start Guide
-
-1. **After `saascode init`** → Read `CLAUDE.md` in project root (your main instructions)
-2. **Before making changes** → Read [docs/FOR-AI-AGENTS.md](docs/FOR-AI-AGENTS.md) (comprehensive reference guide)
-3. **Use these commands:**
-   - `saascode review` — Before every commit
-   - `saascode check-file <file>` — After editing files
-   - `saascode parity` — When adding/changing API endpoints
-   - `saascode predeploy` — Before deploying
-   - `saascode sweep` — Full project scan
-
-### Important Files for You (Auto-Loaded)
-
-| File | For | Auto-Loaded? | Purpose |
-|------|-----|--------------|---------|
-| **CLAUDE.md** | Claude Code | ✅ Yes | Project context + AI rules (generated after init) |
-| **.cursorrules** | Cursor | ✅ Yes | File creation rules, validation commands |
-| **.windsurfrules** | Windsurf | ✅ Yes | File creation rules, validation commands |
-| **docs/FOR-AI-AGENTS.md** | All AIs | ⚪ Reference | Comprehensive guide (read if needed) |
-| **scripts/validate-structure.sh** | All AIs | ⚪ Manual | Run before commits to check structure |
-
-### Rules Summary
-
-❌ **Don't create:** Extra .md files, duplicate test results, temp files in root
-✅ **Do update:** Existing files instead of creating new ones
-✅ **Always validate:** Run `bash scripts/validate-structure.sh` before commit
-
-**Full AI documentation:** [docs/FOR-AI-AGENTS.md](docs/FOR-AI-AGENTS.md)
-
----
-
-## 👥 For Humans (Project Owners)
-
-### What Is Kit?
-
-AI coding tools are powerful but blind -- they don't know your auth flow, your security patterns, your API conventions, or which endpoints already exist. You end up repeating the same instructions, fixing the same mistakes, and babysitting every prompt.
-
-Kit solves this. You fill out one `manifest.yaml` with your project's stack, and the kit generates IDE-specific context files, code review automation, git hooks, and CLI tools -- all tailored to **your** project.
-
-**One manifest. Every IDE. Every developer. Same rules.**
-
----
-
-## Key Features
-
-### Code Review & Analysis
-
-| Feature | What It Does |
-|---------|-------------|
-| **AST-Based Code Review** | Parses your controllers and services with ts-morph. Catches missing auth guards, unscoped queries, empty catch blocks, hardcoded secrets -- with exact line numbers and confidence scores. Aggregates noisy warnings (e.g. console.log) per file to surface meaningful findings |
-| **AI-Powered Review** | LLM-based semantic code review using free-tier providers (Groq). Catches logical issues that pattern matching can't |
-| **Real-Time File Validation** | Claude Code hooks run after every AI edit (< 1 second). 17 check categories -- the AI self-corrects before you even review |
-| **Endpoint Parity Checker** | Compares frontend API client calls against backend controller routes. Catches 404s before runtime |
-
-### Prevention & Gates
-
-| Feature | What It Does |
-|---------|-------------|
-| **Pre-Commit Hook** | Blocks secrets, .env files, merge conflict markers, debug statements, and oversized files before they enter git |
-| **Pre-Push Hook** | Runs TypeScript check, build verification, and security audit before code reaches the remote |
-| **CI/CD Pipeline** | GitHub Actions workflow: build, test, endpoint parity, and security checks on every PR |
-| **Pre-Deploy Gates** | Full deployment readiness verification -- build, types, tests, parity, security in one command. Auto-detects monorepo vs single-package projects |
-
-### IDE Context & AI Skills
-
-| Feature | What It Does |
-|---------|-------------|
-| **IDE Context Generation** | Generates `CLAUDE.md`, `.cursorrules`, `.windsurfrules` from your manifest -- your project's rules baked into every AI conversation |
-| **14 AI Skills** | Mid-conversation commands for Claude Code: `/build` (full features), `/review` (PR review), `/audit` (security scan), `/debug`, `/test`, `/migrate`, and 8 more |
-| **Tiered Context System** | Message classification (QUICK/MEDIUM/FULL) so a CSS fix costs ~200 tokens instead of 5000+ |
-| **Semgrep Rule Sets** | 5 rule sets for real-time static analysis in any IDE: auth, security, input validation, data scoping, UI consistency |
-
-### Tracking & Intelligence
-
-| Feature | What It Does |
-|---------|-------------|
-| **Intent Tracking** | Logs every AI edit with context -- what was changed, which file, what the check-file validator found. Full audit trail |
-| **Issue Report Logging** | Every detected issue (from check-file, audit, pre-deploy) is auto-logged to `.saascode/logs/`. View with `saascode report`, or file to GitHub with `--github` |
-| **Full Sweep** | One command runs audit + pre-deploy + code review in sequence with a combined pass/fail summary |
-| **Stealth Mode (Cloak)** | Removes all traces of kit and AI tools from your repo. Renames directories, strips branding, stashes `.claude/`, `.cursor/`, `.cursorrules`, `.windsurfrules`. Nobody can tell you're using it |
-| **Self-Improving Rules** | `/learn` skill captures real bugs found during development and feeds them back into the kit's patterns |
-| **Project Snapshot** | Auto-generates `project-map.md` from your actual codebase -- models, endpoints, pages, components |
-
----
-
-## Who Is This For?
-
-### SaaS Developers Using AI Coding Tools
-
-If you use Claude Code, Cursor, or Windsurf to build SaaS applications and want the AI to follow your project's patterns instead of guessing.
-
-### Solo Developers Who Need Code Review
-
-If you're a solo developer or small team without dedicated reviewers. The kit gives you automated security and quality checks that would otherwise require expensive per-seat tools.
-
-### Teams Who Want Consistency
-
-If your team has 3+ developers using AI tools and you want everyone's AI to follow the same conventions -- same auth patterns, same API structure, same code style.
-
-### Projects With Custom Patterns
-
-If your project has specific rules that generic linters can't enforce -- auth guard ordering, data scoping conventions, API response formats, or any project-specific patterns that matter.
-
----
-
 ## Quick Start
 
-### Option 1: npx (Recommended)
-
 ```bash
-npx kit init
+npx saascode init              # Set up your SaaS project (60 seconds)
+npx saascode check             # Find API route mismatches (ZERO competition)
+npx saascode review --saas     # SaaS-specific code review (free CodeRabbit)
+npx saascode recommend         # Project health score (0-100)
+npx saascode add eslint        # Configure tools for your stack
 ```
 
-This creates `manifest.yaml` from the template. Edit it with your project details, then run `npx kit init` again to install everything.
+## What It Does
 
-### Option 2: Git Submodule
+### Endpoint Parity Checker (`saascode check`)
 
-```bash
-# 1. Add to your project
-git submodule add https://github.com/Saitata7/saascode-kit.git saascode-kit
+The **only tool that finds mismatches between frontend API calls and backend routes** before they ship. Supports 14 frameworks: NestJS, Express, Next.js, Django, Flask, FastAPI, Rails, Spring, Laravel, Go, and more.
 
-# 2. Configure
-cp saascode-kit/manifest.example.yaml saascode-kit/manifest.yaml
-# Edit manifest.yaml with your project details
+```
+  SAASCODE ENDPOINT CHECK
+  ────────────────────────
+  Stack: nestjs / nextjs
+  Backend: apps/api/src (42 routes)
+  Frontend: apps/portal/src (38 API calls)
 
-# 3. Install for your IDE
-saascode claude     # Claude Code users
-saascode cursor     # Cursor users
-saascode windsurf   # Windsurf users
+  ✗ MISSING BACKEND ROUTE
+    POST /api/users/profile
+    Called in: src/components/Profile.tsx:47
 
-# Or install everything at once
-saascode init
+  ✗ METHOD MISMATCH
+    /api/orders  frontend=GET  backend=POST
+
+  ────────────────────────
+  Matched: 34 ✓  Missing: 2 ✗  Mismatch: 1 ✗  Orphaned: 2 ⚠
 ```
 
-> See **[SETUP.md](SETUP.md)** for detailed installation, manifest configuration, CLI reference, and directory structure.
+### AST Code Review (`saascode review`)
 
-## CLI Commands
+Free, offline, deterministic code review across 5 languages. No AI, no tokens, no internet.
+
+- Missing auth guards on API routes
+- Unscoped tenant queries (data leaks)
+- Hardcoded secrets and API keys
+- Empty catch blocks on payment flows
+- SQL injection patterns
+- Webhook handlers without signature verification
+
+### Project Health Score (`saascode recommend`)
+
+0-100 health score across 5 categories: tool coverage, security posture, code quality, CI/CD, SaaS maturity.
+
+### Tool Orchestrator (`saascode add`)
+
+One command configures ESLint, Prettier, Husky, or Semgrep for your exact stack.
 
 ```bash
-# IDE Setup
-saascode claude                    # Install Claude Code config
-saascode cursor                    # Install Cursor config
-saascode windsurf                  # Install Windsurf config
-
-# Code Review
-saascode review                    # AST-based code review
-saascode review --changed-only     # Review only files changed in last commit
-saascode review --ai               # AI-powered review (LLM)
-saascode check-file <path>         # Single-file validator (17 checks)
-
-# Analysis & Deployment
-saascode sweep                     # Run ALL checks (audit + predeploy + review)
-saascode audit                     # Full security + quality audit
-saascode parity                    # Frontend-backend endpoint comparison
-saascode predeploy                 # Pre-deployment gates
-
-# Issue Tracking
-saascode report                    # View detected issues
-saascode report --github           # File issues to GitHub
-saascode report --summary          # Issue counts by category
-
-# Stealth Mode
-saascode cloak                     # Hide all kit + AI tool traces
-saascode uncloak                   # Reverse stealth mode
-
-# Setup & Sync
-saascode init                      # Full interactive setup
-saascode update                    # Sync kit to installed locations
-saascode status                    # Show what's installed
-saascode help                      # All commands
+npx saascode add eslint     # Framework-aware ESLint (or Ruff for Python, golangci for Go)
+npx saascode add prettier   # Prettier with framework plugins
+npx saascode add husky      # Husky + lint-staged + parity check on push
+npx saascode add semgrep    # SaaS security rules (auth, tenant isolation, input validation)
+npx saascode add all        # All of the above
 ```
 
-## Documentation
+## Supported Stacks
 
-| Document | What's In It |
-|----------|-------------|
-| **[GOALS.md](GOALS.md)** | Vision, aims, use cases, pros & cons, how it compares to alternatives |
-| **[SETUP.md](SETUP.md)** | Installation, manifest config, CLI reference, directory structure, troubleshooting |
-| **[CONTRIBUTING.md](CONTRIBUTING.md)** | How to contribute, code style, testing guidelines |
-| **[LEARNINGS.md](LEARNINGS.md)** | Growth log -- auto-populated by the `/learn` skill |
+| Language | Frameworks | Review | Parity |
+|----------|-----------|--------|--------|
+| TypeScript/JS | NestJS, Express, Fastify, Hono, Next.js, Remix | AST (ts-morph) | AST |
+| Python | Django, Flask, FastAPI | AST (stdlib) | Regex |
+| Go | Gin, Chi, Mux, Echo, Fiber | Regex | Regex |
+| Java | Spring Boot | Regex | Regex |
+| Ruby | Rails | Regex | Regex |
+| PHP | Laravel | Regex | Regex |
 
-## Author
+## Output Formats
 
-Created by **Sai Kumar Tata** ([@Saitata7](https://github.com/Saitata7))
+- **Terminal** — Beautiful chalk output (default)
+- **JSON** — `--json` flag for programmatic consumption
+- **SARIF** — `--sarif` flag for GitHub Code Scanning integration
+
+## How It Works
+
+1. **Manifest-driven** — One `manifest.yaml` configures everything. Auto-detects if no manifest exists.
+2. **AST-level accuracy** — Uses ts-morph for TypeScript/JS, Python stdlib ast, regex patterns for other languages.
+3. **Zero dependencies at runtime** — Shell scripts need nothing installed. TypeScript CLI needs Node.js.
+4. **Offline-first** — No internet, no API keys, no AI tokens. Everything runs locally.
+
+## Install
+
+```bash
+# Run directly (recommended)
+npx saascode check
+
+# Or install globally
+npm install -g saascode-kit
+
+# Standalone parity checker
+npx saascode-check ./path/to/project
+```
 
 ## License
 
-[MIT License](LICENSE) -- Copyright (c) 2026 Sai Kumar Tata
+MIT
